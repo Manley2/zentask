@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en" class="h-full bg-slate-950 overflow-x-hidden">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,40 +9,50 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="font-sans antialiased bg-cover bg-center bg-no-repeat min-h-screen"
-      style="background-image: url('{{ asset('images/dashboard-bg.png') }}');">
+
+<body
+    class="h-full font-sans antialiased bg-cover bg-center bg-no-repeat overflow-x-hidden"
+    style="background-image: url('{{ asset('images/dashboard-bg.png') }}');">
 
     <!-- Overlay gelap untuk readability yang lebih baik -->
-    <div class="fixed inset-0 bg-gradient-to-br from-slate-900/40 via-blue-900/30 to-slate-900/40 backdrop-blur-[2px] -z-10"></div>
-
+    <div
+        class="fixed inset-0 bg-gradient-to-br from-slate-900/40 via-blue-900/30 to-slate-900/40 backdrop-blur-[2px] -z-10">
+    </div>
 
     <!-- Navigation Bar -->
     <nav class="dashboard-nav">
         <div class="nav-container">
             <!-- Logo -->
             <div class="nav-logo">
-                <h1 class="text-2xl font-bold text-white tracking-tight">Zentask<span class="text-blue-400">.</span></h1>
+                <h1 class="text-2xl font-bold text-white tracking-tight">Zentask<span class="text-blue-400">.</span>
+                </h1>
             </div>
 
             <!-- Navigation Links -->
             <div class="nav-links">
-                <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                <a href="{{ route('dashboard') }}"
+                    class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                     <span>Dashboard</span>
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ route('tasks.index') }}"
+                    class="nav-link {{ request()->routeIs('tasks.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span>Tasks</span>
                 </a>
 
-                <a href="#" class="nav-link">
+                <a href="{{ route('calendar.index') }}"
+                    class="nav-link {{ request()->routeIs('calendar.*') ? 'active' : '' }}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span>Calendar</span>
                 </a>
@@ -62,7 +73,8 @@
                     @csrf
                     <button type="submit" class="logout-btn" title="Logout">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
                     </button>
                 </form>
@@ -78,6 +90,7 @@
     </main>
 
 </body>
+
 </html>
 
 <style>

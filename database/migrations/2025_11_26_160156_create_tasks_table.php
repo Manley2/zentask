@@ -10,17 +10,36 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up()
-{
-    Schema::create('tasks', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        $table->string('title');
-        $table->text('description')->nullable();
-        $table->date('due_date')->nullable();
-        $table->enum('status', ['pending', 'completed'])->default('pending');
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('tasks', function (Blueprint $table) {
+            $table->id();
+
+            // =========================
+            // RELASI USER
+            // =========================
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+
+            // =========================
+            // DATA UTAMA TASK
+            // =========================
+            $table->string('title');
+            $table->string('category')->nullable(); // kategori task
+            $table->text('description')->nullable(); // deskripsi manual
+
+            // =========================
+            // 🎙️ VOICE RECORD (HASIL TRANSKRIP)
+            // =========================
+            $table->longText('voice_text')->nullable(); // hasil rekaman suara → teks
+
+            // =========================
+            // DEADLINE & STATUS
+            // =========================
+            $table->date('due_date')->nullable();
+            $table->enum('status', ['pending', 'completed'])->default('pending');
+
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.
