@@ -1,288 +1,393 @@
-@extends('layouts.app')
-
-@section('title', 'Dashboard - ZENTASK')
+@extends('layouts.dashboard-layout')
 
 @section('content')
-<style>
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+<div class="space-y-6">
 
-  @keyframes fadeInDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+    {{-- Hero Section --}}
+    <div class="relative overflow-hidden">
+        <div class="relative z-10">
+            {{-- Welcome Header --}}
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center animate-pulse">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-4xl lg:text-5xl font-bold text-white glow-text-blue">
+                        ZenTask
+                    </h1>
+                </div>
+            </div>
 
-  @keyframes fadeInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .animate-fade-in-down {
-    animation: fadeInDown 0.5s ease-out;
-  }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 0.5s ease-out;
-  }
-
-  .animate-fade-in-left {
-    animation: fadeInLeft 0.5s ease-out;
-  }
-
-  .delay-100 { animation-delay: 0.1s; animation-fill-mode: both; }
-  .delay-200 { animation-delay: 0.2s; animation-fill-mode: both; }
-  .delay-300 { animation-delay: 0.3s; animation-fill-mode: both; }
-  .delay-400 { animation-delay: 0.4s; animation-fill-mode: both; }
-  .delay-500 { animation-delay: 0.5s; animation-fill-mode: both; }
-
-  .gradient-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  }
-
-  .shadow-elegant {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-
-  .shadow-glow {
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-  }
-
-  .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  }
-
-  .hover-scale:hover {
-    transform: scale(1.02);
-  }
-
-  .card-stat {
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-  }
-
-  .card-accent {
-    border-color: rgba(251, 146, 60, 0.2);
-  }
-
-  .card-success {
-    border-color: rgba(34, 197, 94, 0.2);
-  }
-
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .backdrop-blur {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
-  .sticky-header {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(8px);
-    border-bottom: 1px solid #e5e7eb;
-  }
-</style>
-
-  <!-- Main Content -->
-  <main style="max-width:1280px;margin:0 auto;padding:32px 24px">
-
-    <!-- Stats Grid -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;margin-bottom:32px">
-
-      <!-- Total Events Card -->
-      <div class="card-stat shadow-elegant hover-lift transition-smooth animate-fade-in-up delay-100">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <h3 style="font-size:14px;font-weight:500;color:#6b7280;margin:0">Total Events</h3>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
+            {{-- Greeting & Date --}}
+            <div class="mt-6 space-y-2">
+                <h2 class="text-2xl lg:text-3xl font-bold text-white">
+                    Halo, {{ Auth::user()->name }}
+                </h2>
+                <p class="text-gray-400 text-lg">
+                    {{ now()->format('l, d F Y') }}
+                </p>
+            </div>
         </div>
-        <div style="font-size:36px;font-weight:700;color:#111827;margin:12px 0">
-          {{ $totalEvents }}
-        </div>
-        <p style="font-size:12px;color:#6b7280;margin:8px 0 0">
-          This month: <strong style="color:#111827">{{ $eventsThisMonth }}</strong>
-        </p>
-      </div>
 
-      <!-- Upcoming Events Card -->
-      <div class="card-stat card-accent shadow-elegant hover-lift transition-smooth animate-fade-in-up delay-200">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <h3 style="font-size:14px;font-weight:500;color:#6b7280;margin:0">Upcoming (7 days)</h3>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-        <div style="font-size:36px;font-weight:700;color:#111827;margin:12px 0">
-          {{ $upcoming->count() }}
-        </div>
-        <p style="font-size:12px;color:#6b7280;margin:8px 0 0">
-          Events in the next week
-        </p>
-      </div>
-
-      <!-- Quick Actions Card -->
-      <div class="card-stat card-success shadow-elegant hover-lift transition-smooth animate-fade-in-up delay-300">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <h3 style="font-size:14px;font-weight:500;color:#6b7280;margin:0">Quick Actions</h3>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-            <polyline points="17 6 23 6 23 12"></polyline>
-          </svg>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:16px">
-          <a href="{{ route('calendar.index') }}"
-             class="transition-smooth"
-             style="flex:1;padding:8px 16px;border:1px solid #e5e7eb;border-radius:8px;text-align:center;text-decoration:none;color:#374151;font-size:14px;font-weight:500;background:white">
-            Calendar
-          </a>
-          <a href="#"
-             onclick="location.reload();return false;"
-             class="transition-smooth"
-             style="flex:1;padding:8px 16px;border:1px solid #e5e7eb;border-radius:8px;text-align:center;text-decoration:none;color:#374151;font-size:14px;font-weight:500;background:white">
-            Refresh
-          </a>
-        </div>
-      </div>
-
+        {{-- Decorative Background --}}
+        <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -z-10"></div>
+        <div class="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl -z-10"></div>
     </div>
 
-    <!-- Upcoming Events Section -->
-    <div class="animate-fade-in-up delay-400" style="margin-bottom:32px">
-      <div style="background:white;border-radius:12px;padding:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div>
-            <h2 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827">Upcoming Events</h2>
-            <p style="font-size:14px;color:#6b7280;margin:0">Next 7 days schedule</p>
-          </div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
+    {{-- Statistics Cards Grid --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
 
-        @if($upcoming->isEmpty())
-          <div style="text-align:center;padding:32px 0;color:#6b7280">
-            No upcoming events in the next 7 days
-          </div>
-        @else
-          <div style="display:flex;flex-direction:column;gap:16px">
-            @foreach($upcoming->take(5) as $index => $ev)
-              <div class="animate-fade-in-left transition-smooth hover-lift"
-                   style="display:flex;align-items:start;gap:16px;padding:16px;border-radius:12px;border:1px solid #e5e7eb;cursor:pointer;animation-delay:{{ 0.5 + ($index * 0.05) }}s"
-                   onclick="window.location='{{ route('calendar.index') }}'">
-
-                <div style="width:4px;height:64px;border-radius:9999px;flex-shrink:0;background:{{ $ev->color ?? '#14b8a6' }}"></div>
-
-                <div style="flex:1;min-width:0">
-                  <h4 style="font-weight:600;color:#111827;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    {{ $ev->title }}
-                  </h4>
-                  <p style="font-size:14px;color:#6b7280;margin:4px 0">
-                    {{ $ev->start_at->format('D, d M Y H:i') }}
-                    @if($ev->end_at) - {{ $ev->end_at->format('H:i') }}@endif
-                  </p>
-                  @if($ev->description)
-                    <p class="line-clamp-2" style="font-size:14px;color:#6b7280;margin:8px 0 0">
-                      {{ $ev->description }}
-                    </p>
-                  @endif
+        {{-- Total Tasks Card --}}
+        <a href="{{ route('dashboard') }}"
+           class="glass-card rounded-2xl p-6 relative overflow-hidden group hover:scale-105 transition-transform duration-300">
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-14 h-14 bg-blue-500/20 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                    </div>
+                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs font-semibold rounded-full">
+                        +12 MINGGU INI
+                    </span>
                 </div>
 
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:4px">
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                  <polyline points="12 5 19 12 12 19"></polyline>
+                <p class="text-gray-400 text-sm font-medium mb-2">TOTAL KEGIATAN</p>
+                <div class="flex items-end gap-2">
+                    <h3 class="text-5xl font-bold text-white">{{ Auth::user()->tasks()->count() }}</h3>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div class="mt-4 h-2 bg-slate-800/50 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
+                         style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl"></div>
+        </a>
+
+        {{-- In Progress Card --}}
+        <a href="{{ route('dashboard', ['status' => 'berjalan']) }}"
+           class="glass-card rounded-2xl p-6 relative overflow-hidden group hover:scale-105 transition-transform duration-300">
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-14 h-14 bg-yellow-500/20 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <span class="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full">
+                        BERJALAN
+                    </span>
+                </div>
+
+                <p class="text-gray-400 text-sm font-medium mb-2">IN PROGRESS</p>
+                <div class="flex items-end gap-2">
+                    <h3 class="text-5xl font-bold text-white">{{ Auth::user()->tasks()->where('status', 'berjalan')->count() }}</h3>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div class="mt-4 h-2 bg-slate-800/50 rounded-full overflow-hidden">
+                    @php
+                        $totalTasks = Auth::user()->tasks()->count();
+                        $inProgressTasks = Auth::user()->tasks()->where('status', 'berjalan')->count();
+                        $progressPercentage = $totalTasks > 0 ? ($inProgressTasks / $totalTasks) * 100 : 0;
+                    @endphp
+                    <div class="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"
+                         style="width: {{ $progressPercentage }}%"></div>
+                </div>
+            </div>
+            <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-yellow-500/10 rounded-full blur-2xl"></div>
+        </a>
+
+        {{-- Completed Card --}}
+        <a href="{{ route('dashboard', ['status' => 'selesai']) }}"
+           class="glass-card rounded-2xl p-6 relative overflow-hidden group hover:scale-105 transition-transform duration-300">
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-14 h-14 bg-green-500/20 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <span class="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-semibold rounded-full">
+                        SELESAI
+                    </span>
+                </div>
+
+                <p class="text-gray-400 text-sm font-medium mb-2">TASK COMPLETED</p>
+                <div class="flex items-end gap-2">
+                    <h3 class="text-5xl font-bold text-white">{{ Auth::user()->tasks()->where('status', 'selesai')->count() }}</h3>
+                </div>
+
+                {{-- Progress Bar --}}
+                <div class="mt-4 h-2 bg-slate-800/50 rounded-full overflow-hidden">
+                    @php
+                        $completedTasks = Auth::user()->tasks()->where('status', 'selesai')->count();
+                        $completedPercentage = $totalTasks > 0 ? ($completedTasks / $totalTasks) * 100 : 0;
+                    @endphp
+                    <div class="h-full bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"
+                         style="width: {{ $completedPercentage }}%"></div>
+                </div>
+            </div>
+            <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-green-500/10 rounded-full blur-2xl"></div>
+        </a>
+
+        {{-- Nearest Due Date Card --}}
+        <a href="{{ route('dashboard', ['view' => 'due-dates']) }}"
+           class="glass-card rounded-2xl p-6 relative overflow-hidden group hover:scale-105 transition-transform duration-300">
+            <div class="relative z-10">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-14 h-14 bg-red-500/20 rounded-2xl flex items-center justify-center">
+                        <svg class="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <span class="px-3 py-1 bg-red-500/20 text-red-400 text-xs font-semibold rounded-full">
+                        URGENT
+                    </span>
+                </div>
+
+                <p class="text-gray-400 text-sm font-medium mb-2">DUE DATE TERDEKAT</p>
+                @php
+                    $nearestTask = Auth::user()->tasks()
+                        ->where('status', 'berjalan')
+                        ->whereNotNull('due_date')
+                        ->orderBy('due_date', 'asc')
+                        ->first();
+                @endphp
+
+                @if($nearestTask)
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-bold text-white">
+                            {{ \Carbon\Carbon::parse($nearestTask->due_date)->format('d M Y') }}
+                        </h3>
+                        <p class="text-red-400 text-sm font-medium">{{ $nearestTask->title }}</p>
+                    </div>
+                @else
+                    <div class="space-y-2">
+                        <h3 class="text-2xl font-bold text-gray-500">No Due Date</h3>
+                        <p class="text-gray-600 text-sm">All tasks completed!</p>
+                    </div>
+                @endif
+            </div>
+            <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl"></div>
+        </a>
+    </div>
+
+    {{-- Upcoming Tasks Section --}}
+    <div class="glass-card rounded-2xl p-6 lg:p-8">
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold text-white">Upcoming Tasks</h2>
+            </div>
+
+            <div class="flex items-center gap-3">
+                {{-- Filter Buttons --}}
+                <div class="hidden md:flex items-center gap-2">
+                    <a href="{{ route('dashboard', ['filter' => 'todo']) }}"
+                       class="px-4 py-2 bg-green-500/20 text-green-400 text-sm font-semibold rounded-xl hover:bg-green-500/30 transition-all">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                            To do
+                        </span>
+                    </a>
+                    <a href="{{ route('dashboard', ['filter' => 'work']) }}"
+                       class="px-4 py-2 bg-slate-800/50 text-gray-400 text-sm font-semibold rounded-xl hover:bg-slate-700/50 transition-all">
+                        Work
+                    </a>
+                    <a href="{{ route('dashboard', ['filter' => 'high']) }}"
+                       class="px-4 py-2 bg-slate-800/50 text-gray-400 text-sm font-semibold rounded-xl hover:bg-slate-700/50 transition-all">
+                        High priority
+                    </a>
+                    <button class="p-2 bg-slate-800/50 text-gray-400 rounded-xl hover:bg-slate-700/50 transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                    </button>
+                </div>
+
+                {{-- Show All Button --}}
+                @php
+                    $hasFilter = request('filter') || request('status');
+                @endphp
+                @if(request('view') === 'due-dates')
+                    <a href="{{ route('dashboard') }}"
+                       class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 text-white text-sm font-semibold rounded-xl transition-all">
+                        Show Recent
+                    </a>
+                @else
+                    @if($hasFilter)
+                        <a href="{{ route('dashboard') }}"
+                           class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 text-white text-sm font-semibold rounded-xl transition-all">
+                            Show Recent
+                        </a>
+                    @endif
+                    <a href="{{ route('dashboard', ['view' => 'due-dates']) }}"
+                       class="px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 text-white text-sm font-semibold rounded-xl transition-all">
+                        Show All ({{ Auth::user()->tasks()->count() }})
+                    </a>
+                @endif
+            </div>
+        </div>
+
+        {{-- Task Cards Grid --}}
+        @php
+            $filter = request('filter');
+            $statusFilter = request('status');
+            $taskQuery = Auth::user()->tasks();
+            if (in_array($statusFilter, ['berjalan', 'selesai'])) {
+                $taskQuery->where('status', $statusFilter);
+            }
+            if ($filter === 'todo') {
+                $taskQuery->where('status', 'berjalan');
+            } elseif ($filter === 'work') {
+                $taskQuery->where('category', 'Work');
+            } elseif ($filter === 'high') {
+                $taskQuery->where('priority', 'high');
+            }
+
+            $upcomingTasks = (clone $taskQuery)
+                ->orderBy('created_at', 'desc')
+                ->limit(4)
+                ->get();
+            $dueDateTasks = (clone $taskQuery)
+                ->whereNotNull('due_date')
+                ->orderBy('due_date', 'asc')
+                ->get();
+            $dueDateGroups = $dueDateTasks->groupBy(function ($task) {
+                return \Carbon\Carbon::parse($task->due_date)->format('Y-m-d');
+            });
+        @endphp
+
+        @if(request('view') === 'due-dates')
+            @if($dueDateGroups->count() > 0)
+                <div class="space-y-5">
+                    @foreach($dueDateGroups as $dueDateKey => $groupTasks)
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-blue-100">
+                                    {{ \Carbon\Carbon::parse($dueDateKey)->format('d M Y') }}
+                                </h4>
+                                <span class="text-xs text-blue-100/60">{{ $groupTasks->count() }} task</span>
+                            </div>
+                            <div class="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
+                                @foreach($groupTasks as $task)
+                                    <div class="min-w-[260px] max-w-[260px] glass-card rounded-2xl p-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs px-2 py-1 rounded-full bg-blue-500/15 border border-blue-400/20 text-blue-100">
+                                                {{ $task->category ?? 'Tanpa kategori' }}
+                                            </span>
+                                            @if(($task->status ?? '') === 'selesai')
+                                                <span class="text-xs px-2 py-1 rounded-full bg-green-500/15 border border-green-400/20 text-green-100">
+                                                    SELESAI
+                                                </span>
+                                            @else
+                                                <span class="text-xs px-2 py-1 rounded-full bg-purple-500/15 border border-purple-400/20 text-purple-100">
+                                                    IN PROGRESS
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <h5 class="mt-3 text-white font-semibold text-sm line-clamp-2">
+                                            {{ $task->title ?? 'Untitled' }}
+                                        </h5>
+                                        <p class="mt-2 text-xs text-blue-100/70 line-clamp-2">
+                                            {{ $task->description ?? '-' }}
+                                        </p>
+                                        <div class="mt-4 flex items-center justify-between">
+                                            <span class="text-xs text-blue-100/60">
+                                                {{ $task->created_at ? $task->created_at->format('d M Y') : '-' }}
+                                            </span>
+                                            <a href="{{ route('tasks.edit', $task) }}"
+                                                class="text-xs font-semibold text-blue-300 hover:text-blue-200 transition">
+                                                Edit
+                                            </a>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-24 h-24 mb-6 bg-slate-800/50 rounded-3xl flex items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">No Tasks Yet!</h3>
+                </div>
+            @endif
+        @else
+            @if($upcomingTasks->count() > 0)
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                    @foreach($upcomingTasks as $task)
+                        @include('components.task-card', ['task' => $task])
+                    @endforeach
+                </div>
+            @else
+                {{-- Empty State --}}
+                <div class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-24 h-24 mb-6 bg-slate-800/50 rounded-3xl flex items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">No Tasks Yet!</h3>
+                </div>
+            @endif
+        @endif
+    </div>
+
+    {{-- Productivity Stats --}}
+    <div class="glass-card rounded-2xl p-6 lg:p-8">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
                 </svg>
-              </div>
-            @endforeach
-          </div>
-        @endif
-      </div>
-    </div>
-
-    <!-- Recent Activity Section -->
-    <div class="animate-fade-in-up delay-500">
-      <div style="background:white;border-radius:12px;padding:24px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div>
-            <h2 style="font-size:20px;font-weight:700;margin:0 0 4px;color:#111827">Activity</h2>
-            <p style="font-size:14px;color:#6b7280;margin:0">Recent events and actions</p>
-          </div>
-          <p style="font-size:12px;color:#9ca3af">
-            Updated: {{ now()->format('d M Y H:i') }}
-          </p>
+                Productivity Overview
+            </h3>
+            <span class="px-4 py-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-xl font-bold text-lg">
+                {{ $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100) : 0 }}% Complete
+            </span>
         </div>
 
-        @if($upcoming->isEmpty())
-          <div style="text-align:center;padding:32px 0;color:#6b7280">
-            No recent activity
-          </div>
-        @else
-          <div style="display:flex;flex-direction:column;gap:12px">
-            @foreach($upcoming->take(6) as $index => $ev)
-              <div class="animate-fade-in-left transition-smooth"
-                   style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:12px;background:rgba(243,244,246,0.5);cursor:pointer;animation-delay:{{ 0.6 + ($index * 0.05) }}s"
-                   onmouseover="this.style.background='rgba(243,244,246,0.8)'"
-                   onmouseout="this.style.background='rgba(243,244,246,0.5)'"
-                   onclick="window.location='{{ route('calendar.index') }}'">
-
-                <div style="flex:1;min-width:0">
-                  <h4 style="font-weight:500;color:#111827;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    {{ $ev->title }}
-                  </h4>
-                  <p style="font-size:12px;color:#6b7280;margin:0">
-                    {{ $ev->start_at->format('D, d M Y H:i') }}
-                  </p>
-                </div>
-
-                <button style="padding:6px 12px;background:transparent;border:none;color:#3b82f6;font-size:12px;font-weight:500;cursor:pointer">
-                  View
-                </button>
-              </div>
-            @endforeach
-          </div>
-        @endif
-      </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-slate-800/30 rounded-xl">
+                <p class="text-gray-400 text-sm mb-1">This Week</p>
+                <p class="text-2xl font-bold text-white">
+                    {{ Auth::user()->tasks()->where('created_at', '>=', now()->startOfWeek())->count() }}
+                </p>
+            </div>
+            <div class="text-center p-4 bg-slate-800/30 rounded-xl">
+                <p class="text-gray-400 text-sm mb-1">This Month</p>
+                <p class="text-2xl font-bold text-white">
+                    {{ Auth::user()->tasks()->whereMonth('created_at', now()->month)->count() }}
+                </p>
+            </div>
+            <div class="text-center p-4 bg-slate-800/30 rounded-xl">
+                <p class="text-gray-400 text-sm mb-1">Overdue</p>
+                <p class="text-2xl font-bold text-red-400">
+                    {{ Auth::user()->tasks()->where('status', 'berjalan')->where('due_date', '<', now())->count() }}
+                </p>
+            </div>
+            <div class="text-center p-4 bg-slate-800/30 rounded-xl">
+                <p class="text-gray-400 text-sm mb-1">Avg. Daily</p>
+                <p class="text-2xl font-bold text-white">
+                    {{ Auth::user()->tasks()->count() > 0 ? round(Auth::user()->tasks()->count() / 30) : 0 }}
+                </p>
+            </div>
+        </div>
     </div>
-
-  </main>
+>>>>>>> kevinrif
 </div>
 @endsection
