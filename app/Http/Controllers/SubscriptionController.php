@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SubscriptionIntent;
+use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -37,6 +38,26 @@ class SubscriptionController extends Controller
         return view('subscription.plans', compact('user', 'plans'));
     }
 
+    public function adminActivate(Request $request, SubscriptionService $service)
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAdmin()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'plan' => ['required', 'in:free,pro,plus'],
+        ]);
+
+        if ($validator->fails()) {
+            return back()->with('error', 'Invalid plan selection.');
+        }
+
+        $service->activatePlan($user, $request->plan);
+
+        return back()->with('success', 'Plan activated (admin access).');
+    }
+
     public function updatePlan(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -58,9 +79,8 @@ class SubscriptionController extends Controller
             return back()->with('error', 'Upgrade Pro/Plus harus melalui pembayaran.');
         }
 
-        $user->subscription_plan = $selected;
-        $user->plan_started_at = now();
-        $user->save();
+        $service = new SubscriptionService();
+        $service->activatePlan($user, $selected);
 
         return back()->with('success', 'Plan updated successfully!');
     }
@@ -79,6 +99,13 @@ class SubscriptionController extends Controller
         $selected = $request->plan;
         $price = $selected === 'plus' ? 65000 : 45000;
 
+        if ($user->isAdmin()) {
+            $service = new SubscriptionService();
+            $service->activatePlan($user, $selected);
+            return redirect()->route('subscription.plans')
+                ->with('success', 'Plan activated (admin access).');
+        }
+
         if ($user->subscription_plan === $selected) {
             return back()->with('success', 'You are already on this plan.');
         }
@@ -91,6 +118,18 @@ class SubscriptionController extends Controller
             'order_id' => 'ZT-' . $user->id . '-' . Str::uuid(),
             'payment_token' => null,
             'redirect_url' => null,
+        ]);
+
+        if (!config('services.midtrans.server_key')) {
+            return back()->with('error', 'Midtrans belum dikonfigurasi.');
+        }
+
+        $this->initMidtrans();
+        $transaction = $this->buildTransactionParams($intent, $user);
+        $snapToken = \Midtrans\Snap::getSnapToken($transaction);
+
+        $intent->update([
+            'payment_token' => $snapToken,
         ]);
 
         return redirect()->route('subscription.payment', ['order' => $intent->order_id]);
@@ -111,6 +150,12 @@ class SubscriptionController extends Controller
     {
         $orderId = $request->input('order_id');
         $status = $request->input('transaction_status');
+        $statusCode = (string) $request->input('status_code');
+        $grossAmount = (string) $request->input('gross_amount');
+
+        if (!$this->isValidMidtransSignature($orderId, $statusCode, $grossAmount, (string) $request->input('signature_key'))) {
+            return response()->json(['message' => 'Invalid signature.'], 403);
+        }
 
         $intent = SubscriptionIntent::where('order_id', $orderId)->first();
         if (!$intent) {
@@ -128,6 +173,8 @@ class SubscriptionController extends Controller
             if ($user) {
                 $user->subscription_plan = $intent->plan;
                 $user->plan_started_at = now();
+                $user->is_subscribed = true;
+                $user->subscribed_until = now()->addDays(30);
                 $user->save();
             }
         } elseif ($status === 'pending') {
@@ -156,5 +203,48 @@ class SubscriptionController extends Controller
     public function cancel()
     {
         abort(404);
+    }
+
+    private function initMidtrans(): void
+    {
+        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+        \Midtrans\Config::$isProduction = (bool) config('services.midtrans.is_production');
+        \Midtrans\Config::$isSanitized = true;
+        \Midtrans\Config::$is3ds = true;
+    }
+
+    private function buildTransactionParams(SubscriptionIntent $intent, $user): array
+    {
+        return [
+            'transaction_details' => [
+                'order_id' => $intent->order_id,
+                'gross_amount' => (int) $intent->price,
+            ],
+            'item_details' => [
+                [
+                    'id' => $intent->plan,
+                    'price' => (int) $intent->price,
+                    'quantity' => 1,
+                    'name' => strtoupper($intent->plan) . ' Plan',
+                ],
+            ],
+            'customer_details' => [
+                'first_name' => $user->name,
+                'email' => $user->email,
+            ],
+        ];
+    }
+
+    private function isValidMidtransSignature(string $orderId, string $statusCode, string $grossAmount, string $signature): bool
+    {
+        $serverKey = config('services.midtrans.server_key');
+        if (!$serverKey || !$signature) {
+            return false;
+        }
+
+        $payload = $orderId . $statusCode . $grossAmount . $serverKey;
+        $expected = hash('sha512', $payload);
+
+        return hash_equals($expected, $signature);
     }
 }

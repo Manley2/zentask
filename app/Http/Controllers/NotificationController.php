@@ -58,6 +58,7 @@ class NotificationController extends Controller
                     'status_label' => 'Overdue',
                     'status_class' => 'overdue',
                     'priority' => 'high',
+                    'reminder_label' => null,
                 ];
             });
 
@@ -74,9 +75,11 @@ class NotificationController extends Controller
                     'category' => $task->category,
                     'deadline' => $task->due_date,
                     'deadline_formatted' => Carbon::parse($task->due_date)->format('d M Y'),
+                    'days_until' => 0,
                     'status_label' => 'Due Today',
                     'status_class' => 'today',
                     'priority' => 'medium',
+                    'reminder_label' => 'Smart Reminder',
                 ];
             });
 
@@ -89,16 +92,18 @@ class NotificationController extends Controller
             ->get()
             ->map(function ($task) use ($now) {
                 $deadline = Carbon::parse($task->due_date);
+                $daysUntil = $now->diffInDays($deadline);
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
                     'deadline' => $task->due_date,
                     'deadline_formatted' => $deadline->format('d M Y'),
-                    'days_until' => $now->diffInDays($deadline),
+                    'days_until' => $daysUntil,
                     'status_label' => 'Due Soon',
                     'status_class' => 'upcoming',
                     'priority' => 'low',
+                    'reminder_label' => in_array($daysUntil, [1, 3], true) ? 'Smart Reminder' : null,
                 ];
             });
 
@@ -120,6 +125,7 @@ class NotificationController extends Controller
                     'status_label' => 'Pending',
                     'status_class' => 'pending',
                     'priority' => 'low',
+                    'reminder_label' => null,
                 ];
             });
 
@@ -138,6 +144,7 @@ class NotificationController extends Controller
                     'status_label' => 'No deadline',
                     'status_class' => 'no_deadline',
                     'priority' => 'low',
+                    'reminder_label' => null,
                 ];
             });
 

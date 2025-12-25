@@ -28,6 +28,7 @@
         @foreach($plans as $key => $plan)
             @php
                 $isCurrent = ($user->subscription_plan === $key);
+                $isAdmin = $user->isAdmin();
                 $price = $plan['price'] ?? 0;
                 $cardBase = 'glass-card rounded-2xl p-6 border transition';
                 $accent = match($key) {
@@ -64,6 +65,11 @@
                         <span class="text-xs font-semibold px-2.5 py-1 rounded-full {{ $badgeStyle }}">
                             {{ strtoupper($plan['name']) }}
                         </span>
+                        @if($isAdmin)
+                            <span class="ml-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-100 border border-blue-400/30">
+                                Admin Access
+                            </span>
+                        @endif
                         @if($isCurrent)
                             <span class="ml-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-100 border border-purple-400/30">
                                 Current Plan
@@ -98,7 +104,7 @@
                 </div>
 
                 <div class="mt-6">
-                    <form method="POST" action="{{ $formAction }}">
+                    <form method="POST" action="{{ $isAdmin ? route('subscription.admin-activate') : $formAction }}">
                         @csrf
                         <input type="hidden" name="plan" value="{{ $key }}">
 
@@ -108,12 +114,16 @@
                                         ? 'bg-white/10 text-white/50 cursor-not-allowed'
                                         : 'bg-blue-600 hover:bg-blue-700 text-white' }}"
                             {{ $isCurrent ? 'disabled' : '' }}>
-                            {{ $isCurrent ? 'Current Plan' : $ctaLabel }}
+                            @if($isCurrent)
+                                Current Plan
+                            @else
+                                {{ $isAdmin ? 'Activate ' . ucfirst($key) . ' (Admin)' : $ctaLabel }}
+                            @endif
                         </button>
                     </form>
 
                     <p class="text-xs text-blue-100/60 mt-3">
-                        Anda dapat mengganti paket kapan saja.
+                        {{ $isAdmin ? 'Admin dapat mengganti paket tanpa pembayaran.' : 'Anda dapat mengganti paket kapan saja.' }}
                     </p>
 
                     @if($isCurrent && $user->plan_started_at)

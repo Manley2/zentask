@@ -4,6 +4,11 @@
 @php
     $user = Auth::user();
     $rangeStart = now()->subMonths(5)->startOfMonth();
+    $reminderLogs = \App\Models\Notification::where('user_id', $user->id)
+        ->where('type', 'like', 'task_reminder_%')
+        ->orderBy('created_at', 'desc')
+        ->limit(10)
+        ->get();
 
     $months = collect(range(0, 5))->map(function ($i) {
         return now()->subMonths(5 - $i)->startOfMonth();
@@ -147,6 +152,38 @@
                     <span class="text-white">{{ $overdueCount }}</span>
                 </div>
             </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Smart Reminder Log</h2>
+                    <p class="text-sm text-blue-100/60">Riwayat pengingat otomatis terbaru.</p>
+                </div>
+                <span class="text-xs px-3 py-1 rounded-full bg-purple-500/15 border border-purple-400/20 text-purple-100">
+                    {{ $reminderLogs->count() }} terbaru
+                </span>
+            </div>
+
+            @if($reminderLogs->isEmpty())
+                <div class="mt-4 text-sm text-blue-100/60">
+                    Belum ada reminder yang tercatat.
+                </div>
+            @else
+                <div class="mt-4 space-y-3">
+                    @foreach($reminderLogs as $log)
+                        <div class="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                            <div>
+                                <div class="text-sm text-white font-semibold">Smart Reminder</div>
+                                <div class="text-xs text-blue-100/70 mt-1">{{ $log->message }}</div>
+                            </div>
+                            <div class="text-xs text-blue-100/60 whitespace-nowrap">
+                                {{ $log->created_at->format('d M Y H:i') }}
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </div>
     </div>
 </div>

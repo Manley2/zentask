@@ -9,15 +9,25 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        // ✅ Run every day at 07:00 WIB
-        $schedule->command('notifications:send-daily')
-                 ->dailyAt('07:00')
+        // Smart reminders: H-3 (morning), H-1/H-0 (morning + evening)
+        $schedule->command('notifications:send-smart')
+                 ->dailyAt('08:00')
                  ->timezone('Asia/Jakarta')
                  ->onSuccess(function () {
-                     \Log::info('Daily notifications sent successfully');
+                     \Log::info('Smart reminders sent (morning)');
                  })
                  ->onFailure(function () {
-                     \Log::error('Daily notifications failed');
+                     \Log::error('Smart reminders failed (morning)');
+                 });
+
+        $schedule->command('notifications:send-smart')
+                 ->dailyAt('17:00')
+                 ->timezone('Asia/Jakarta')
+                 ->onSuccess(function () {
+                     \Log::info('Smart reminders sent (evening)');
+                 })
+                 ->onFailure(function () {
+                     \Log::error('Smart reminders failed (evening)');
                  });
     }
 

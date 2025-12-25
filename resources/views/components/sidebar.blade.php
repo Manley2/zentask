@@ -126,6 +126,29 @@
                 @endif
             </a>
 
+            @if((Auth::user()->role ?? 'user') === 'admin')
+                <div class="pt-3 border-t border-slate-800/50 space-y-1">
+                    <a href="{{ route('admin.users.index') }}"
+                       class="sidebar-item {{ request()->routeIs('admin.users.*') ? 'sidebar-item--active' : '' }}">
+                        <div class="sidebar-icon">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M9 20H4v-2a3 3 0 015.356-1.857M15 11a4 4 0 10-8 0 4 4 0 008 0zm6 4a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        </div>
+                        <span class="flex-1">Admin Users</span>
+                    </a>
+                    <a href="{{ route('admin.analytics.index') }}"
+                       class="sidebar-item {{ request()->routeIs('admin.analytics.*') ? 'sidebar-item--active' : '' }}">
+                        <div class="sidebar-icon">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19V5m4 14V10m4 9V7M7 19v-4M3 19h18"/>
+                            </svg>
+                        </div>
+                        <span class="flex-1">Analytics</span>
+                    </a>
+                </div>
+            @endif
+
             </div>
         </div>
     </nav>
