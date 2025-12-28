@@ -89,7 +89,7 @@
                                 @endif
                             </div>
 
-                            <button
+                                                        <button
                                 type="submit"
                                 class="auth-button">
                                 Masuk
@@ -98,6 +98,24 @@
                             <p class="text-xs text-blue-100/60 text-center">
                                 Akun Anda aman. Data tidak dibagikan ke pihak ketiga.
                             </p>
+
+                            <div class="flex items-center gap-3">
+                                <div class="h-px flex-1 bg-white/10"></div>
+                                <span class="text-xs text-blue-100/60">atau</span>
+                                <div class="h-px flex-1 bg-white/10"></div>
+                            </div>
+
+                            <a href="{{ route('auth.google.redirect') }}"
+                               class="auth-social-button">
+                                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.1 29.2 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.3 6.5 28.9 4.5 24 4.5 13.8 4.5 5.5 12.8 5.5 23S13.8 41.5 24 41.5 42.5 33.2 42.5 23c0-1.4-.1-2.5-.4-3.5z"/>
+                                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.9C14.7 16 18.9 13 24 13c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.3 6.5 28.9 4.5 24 4.5c-7.1 0-13.3 4-17.7 10.2z"/>
+                                    <path fill="#4CAF50" d="M24 41.5c5 0 9.5-1.9 12.9-5l-6-4.9c-1.8 1.3-4.1 2-6.9 2-5.2 0-9.6-3.5-11.2-8.2l-6.5 5C10.7 37.3 16.8 41.5 24 41.5z"/>
+                                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.7-3 5-5.5 6.6l6 4.9c-1.6 1.5 4.7-3.4 7-9.5 0-.1.8-2.6.8-5.9 0-1.4-.1-2.5-.4-3.5z"/>
+                                </svg>
+                                <span>Login dengan Google</span>
+                            </a>
+
 
                             <p class="text-sm text-blue-100/70 text-center">
                                 Belum punya akun?
@@ -178,7 +196,8 @@
             color: rgba(252, 165, 165, 0.9);
         }
 
-        @keyframes authIn {
+<<<<<<< HEAD
+                @keyframes authIn {
             from {
                 opacity: 0;
                 transform: translateY(12px) scale(0.98);
@@ -188,6 +207,28 @@
                 transform: translateY(0) scale(1);
             }
         }
+
+        .auth-social-button {
+            width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            padding: 0.8rem 1rem;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: #e2e8f0;
+            font-weight: 600;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .auth-social-button:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.25);
+            transform: translateY(-1px);
+        }
+
     </style>
 
     <script>

@@ -8,6 +8,9 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminAnalyticsController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 
 /* =========================================================
  | [ROOT] LANDING PAGE
@@ -115,7 +118,7 @@ Route::middleware('auth')->prefix('profile')->name('profile.')->group(function (
 /* =========================================================
  | [C] SUBSCRIPTION & PRICING (AUTH ONLY)
  ========================================================= */
-Route::middleware('auth')->prefix('subscription')->name('subscription.')->group(function () {
+    Route::middleware('auth')->prefix('subscription')->name('subscription.')->group(function () {
 
     // View plans
     Route::get('/plans', [SubscriptionController::class, 'index'])->name('plans');
@@ -125,6 +128,11 @@ Route::middleware('auth')->prefix('subscription')->name('subscription.')->group(
 
     // Checkout (Midtrans-ready)
     Route::post('/checkout', [SubscriptionController::class, 'checkout'])->name('checkout');
+
+    // Admin activation (bypass payment)
+    Route::post('/admin-activate', [SubscriptionController::class, 'adminActivate'])
+        ->middleware('admin')
+        ->name('admin-activate');
 
     // Payment page
     Route::get('/pay/{order}', [SubscriptionController::class, 'payment'])->name('payment');
@@ -171,6 +179,20 @@ Route::middleware('auth')->prefix('api')->name('api.')->group(function () {
         Route::get('/recent-tasks', [TaskController::class, 'getRecentTasks'])->name('recent-tasks');
         Route::get('/productivity', [TaskController::class, 'getProductivityData'])->name('productivity');
     });
+});
+
+/* =========================================================
+ | [A0] GOOGLE OAUTH
+ ========================================================= */
+Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+
+/* =========================================================
+ | [A6] ADMIN ROUTES
+ ========================================================= */
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+    Route::get('/analytics', [AdminAnalyticsController::class, 'index'])->name('analytics.index');
 });
 
 /* =========================================================

@@ -58,7 +58,12 @@
 </div>
 
     @if(config('services.midtrans.client_key'))
-        <script src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
+        @php
+            $snapHost = config('services.midtrans.is_production')
+                ? 'https://app.midtrans.com'
+                : 'https://app.sandbox.midtrans.com';
+        @endphp
+        <script src="{{ $snapHost }}/snap/snap.js" data-client-key="{{ config('services.midtrans.client_key') }}"></script>
     @endif
 
     <script>

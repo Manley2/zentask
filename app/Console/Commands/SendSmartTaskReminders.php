@@ -20,14 +20,10 @@ class SendSmartTaskReminders extends Command
         $timeBucket = $now->hour < 12 ? 'morning' : 'evening';
 
         $this->info('Starting smart reminder process...');
-
         $tasks = Task::where('status', 'berjalan')
             ->whereNotNull('due_date')
             ->whereDate('due_date', '>=', $today)
             ->whereDate('due_date', '<=', $today->copy()->addDays(3))
-            ->whereHas('user', function ($query) {
-                $query->whereIn('subscription_plan', ['pro', 'plus']);
-            })
             ->orderBy('due_date', 'asc')
             ->get();
 
@@ -46,6 +42,7 @@ class SendSmartTaskReminders extends Command
                 continue;
             }
 
+            // H-3 only once per day (morning)
             if ($daysUntil === 3 && $timeBucket !== 'morning') {
                 continue;
             }
@@ -56,12 +53,10 @@ class SendSmartTaskReminders extends Command
                 continue;
             }
 
-            $message = $this->buildMessage($task->title, $daysUntil, $dueDate);
-
             Notification::create([
                 'user_id' => $task->user_id,
                 'type' => $type,
-                'message' => $message,
+                'message' => $this->buildMessage($task->title, $daysUntil, $dueDate),
                 'read' => false,
             ]);
 

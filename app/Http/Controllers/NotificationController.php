@@ -19,7 +19,7 @@ class NotificationController extends Controller
         $count = Task::where('user_id', $user->id)
             ->where('status', '!=', 'selesai')
             ->whereNotNull('due_date')
-            ->where('due_date', '<=', Carbon::now()->addDays(3)) // Due within 3 days
+            ->where('due_date', '<=', Carbon::now()->addDays(3))
             ->count();
 
         return response()->json([
@@ -40,7 +40,6 @@ class NotificationController extends Controller
         $baseQuery = Task::where('user_id', $user->id)
             ->where('status', '!=', 'selesai');
 
-        // Get overdue tasks
         $overdueTasks = (clone $baseQuery)
             ->whereNotNull('due_date')
             ->where('due_date', '<', $today)
@@ -52,16 +51,16 @@ class NotificationController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => $dueDate->format('d M Y'),
+                    'deadline' => $task->due_date,
+                    'deadline_formatted' => $dueDate->format('d M Y'),
                     'days_overdue' => $now->diffInDays($dueDate),
                     'status_label' => 'Overdue',
                     'status_class' => 'overdue',
                     'priority' => 'high',
+                    'reminder_label' => null,
                 ];
             });
 
-        // Get today's tasks
         $todayTasks = (clone $baseQuery)
             ->whereNotNull('due_date')
             ->whereDate('due_date', $today)
@@ -72,15 +71,16 @@ class NotificationController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => Carbon::parse($task->due_date)->format('d M Y'),
+                    'deadline' => $task->due_date,
+                    'deadline_formatted' => Carbon::parse($task->due_date)->format('d M Y'),
+                    'days_until' => 0,
                     'status_label' => 'Due Today',
                     'status_class' => 'today',
                     'priority' => 'medium',
+                    'reminder_label' => 'Smart Reminder',
                 ];
             });
 
-        // Get upcoming tasks (next 1-3 days)
         $upcomingTasks = (clone $baseQuery)
             ->whereNotNull('due_date')
             ->whereDate('due_date', '>', $today)
@@ -88,43 +88,44 @@ class NotificationController extends Controller
             ->orderBy('due_date', 'asc')
             ->get()
             ->map(function ($task) use ($now) {
-                $dueDate = Carbon::parse($task->due_date);
+                $deadline = Carbon::parse($task->due_date);
+                $daysUntil = $now->diffInDays($deadline);
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => $dueDate->format('d M Y'),
-                    'days_until' => $now->diffInDays($dueDate),
+                    'deadline' => $task->due_date,
+                    'deadline_formatted' => $deadline->format('d M Y'),
+                    'days_until' => $daysUntil,
                     'status_label' => 'Due Soon',
                     'status_class' => 'upcoming',
                     'priority' => 'low',
+                    'reminder_label' => in_array($daysUntil, [1, 3], true) ? 'Smart Reminder' : null,
                 ];
             });
 
-        // Get pending tasks with later due dates
         $laterTasks = (clone $baseQuery)
             ->whereNotNull('due_date')
             ->whereDate('due_date', '>', $today->copy()->addDays(3))
             ->orderBy('due_date', 'asc')
             ->get()
             ->map(function ($task) use ($now) {
-                $dueDate = Carbon::parse($task->due_date);
+                $deadline = Carbon::parse($task->due_date);
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
-                    'due_date' => $task->due_date,
-                    'due_date_formatted' => $dueDate->format('d M Y'),
-                    'days_until' => $now->diffInDays($dueDate),
+                    'deadline' => $task->due_date,
+                    'deadline_formatted' => $deadline->format('d M Y'),
+                    'days_until' => $now->diffInDays($deadline),
                     'status_label' => 'Pending',
                     'status_class' => 'pending',
                     'priority' => 'low',
+                    'reminder_label' => null,
                 ];
             });
 
-        // Get tasks without due dates
-        $noDueDateTasks = (clone $baseQuery)
+        $noDeadlineTasks = (clone $baseQuery)
             ->whereNull('due_date')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -133,20 +134,20 @@ class NotificationController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'category' => $task->category,
-                    'due_date' => null,
-                    'due_date_formatted' => 'No due date',
-                    'status_label' => 'No due date',
-                    'status_class' => 'no_due_date',
+                    'deadline' => null,
+                    'deadline_formatted' => 'No deadline',
+                    'status_label' => 'No deadline',
+                    'status_class' => 'no_deadline',
                     'priority' => 'low',
+                    'reminder_label' => null,
                 ];
             });
 
-        // Merge all tasks
         $allTasks = $overdueTasks
             ->concat($todayTasks)
             ->concat($upcomingTasks)
             ->concat($laterTasks)
-            ->concat($noDueDateTasks);
+            ->concat($noDeadlineTasks);
 
         return response()->json([
             'success' => true,
@@ -164,8 +165,6 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request)
     {
-        // For now, just return success
-        // Later you can implement a notifications table
         return response()->json([
             'success' => true,
             'message' => 'Notification marked as read',

@@ -164,6 +164,15 @@
                             class="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-blue-100 font-semibold transition">
                             Batal
                         </a>
+                        <form method="POST" action="{{ route('tasks.destroy', $task) }}"
+                              onsubmit="return confirm('Hapus task ini? Tindakan ini tidak bisa dibatalkan.');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit"
+                                class="px-6 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-400/30 text-red-200 font-semibold transition">
+                                Hapus Task
+                            </button>
+                        </form>
                     </div>
                 </form>
             </div>

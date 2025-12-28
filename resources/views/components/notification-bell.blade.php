@@ -140,6 +140,11 @@
                                         <span x-text="`(${task.days_until}d)`"></span>
                                     </template>
                                 </span>
+                                <template x-if="task.reminder_label">
+                                    <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                                        <span x-text="task.reminder_label"></span>
+                                    </span>
+                                </template>
                             </div>
                         </div>
 

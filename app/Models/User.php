@@ -17,8 +17,13 @@ class User extends Authenticatable
         'email',
         'password',
         'avatar',
+        'google_id',
+        'google_avatar',
+        'role',
         'subscription_plan',
         'plan_started_at',
+        'is_subscribed',
+        'subscribed_until',
     ];
 
     protected $hidden = [
@@ -32,6 +37,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'plan_started_at' => 'datetime',
+            'subscribed_until' => 'datetime',
+            'is_subscribed' => 'boolean',
         ];
     }
 
@@ -105,5 +112,10 @@ class User extends Authenticatable
     public function files()
     {
         return $this->hasMany(UserFile::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return ($this->role ?? 'user') === 'admin';
     }
 }
