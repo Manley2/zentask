@@ -434,7 +434,7 @@
 
                         {{-- =====================
                         STATUS (READ ONLY)
-                        Status diubah lewat halaman EDIT saja 
+                        Status diubah lewat halaman EDIT saja
                         ====================== --}}
                         <td class="py-4 pr-4">
                             @php $st = $task->status ?? 'berjalan'; @endphp

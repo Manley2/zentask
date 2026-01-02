@@ -148,6 +148,11 @@ class SubscriptionController extends Controller
 
     public function midtransCallback(Request $request)
     {
+        \Log::info('MIDTRANS REAL WEBHOOK HIT', [
+            'headers' => $request->headers->all(),
+            'payload' => $request->all(),
+            'ip' => $request->ip(),
+        ]);
         $orderId = $request->input('order_id');
         $status = $request->input('transaction_status');
         $statusCode = (string) $request->input('status_code');

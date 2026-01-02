@@ -196,8 +196,7 @@
             color: rgba(252, 165, 165, 0.9);
         }
 
-<<<<<<< HEAD
-                @keyframes authIn {
+            @keyframes authIn {
             from {
                 opacity: 0;
                 transform: translateY(12px) scale(0.98);

@@ -2,9 +2,7 @@
 <html lang="en" class="h-full bg-slate-950 overflow-x-hidden">
 
 <head>
-    {{-- ========================================
-         META & CORE CONFIGURATION
-         ========================================= --}}
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -671,7 +669,7 @@
 
     {{-- ✅ IMPROVEMENT: Print styles --}}
     @media print {
-        .dashboard-nav, 
+        .dashboard-nav,
         .dashboard-footer,
         .notification-slot,
         .logout-btn,

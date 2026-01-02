@@ -5,21 +5,23 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->string('category')->nullable()->after('title');
-        });
+        // Tambah kolom hanya jika belum ada
+        if (!Schema::hasColumn('tasks', 'category')) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->string('category')->nullable()->after('title');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->dropColumn('category');
-        });
+        // Drop kolom hanya jika ada
+        if (Schema::hasColumn('tasks', 'category')) {
+            Schema::table('tasks', function (Blueprint $table) {
+                $table->dropColumn('category');
+            });
+        }
     }
-
 };
