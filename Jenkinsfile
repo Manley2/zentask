@@ -21,7 +21,6 @@ pipeline {
     ACR_CRED_ID = 'acr-zentask-admin'
 
     // Jenkins Secret Text credential IDs untuk Azure Service Principal
-    // (buat di Jenkins: Manage Credentials -> Secret text)
     AZ_TENANT_ID_CRED = 'azure-tenant-id'
     AZ_CLIENT_ID_CRED = 'azure-client-id'
     AZ_CLIENT_SECRET_CRED = 'azure-client-secret'
@@ -40,7 +39,15 @@ pipeline {
     stage('Prepare Environment') {
       steps {
         script {
-          env.GIT_SHA = bat(returnStdout: true, script: "git rev-parse --short HEAD").trim()
+          // 1) paling aman: pakai commit dari Jenkins
+          def sha = (env.GIT_COMMIT ?: "").trim()
+          if (sha.length() >= 7) {
+            env.GIT_SHA = sha.substring(0, 7)
+          } else {
+            // 2) fallback: ambil dari git via PowerShell (lebih bersih dari bat di Windows)
+            env.GIT_SHA = powershell(returnStdout: true, script: '(git rev-parse --short HEAD).Trim()').trim()
+          }
+
           env.IMAGE_TAG = env.GIT_SHA
           env.FULL_IMAGE_SHA = "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:${env.IMAGE_TAG}"
           env.FULL_IMAGE_LATEST = "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:latest"
@@ -58,7 +65,7 @@ pipeline {
     stage('Build Docker Image') {
       steps {
         bat """
-          docker build -t %FULL_IMAGE_SHA% -t %FULL_IMAGE_LATEST% .
+          docker build -t "%FULL_IMAGE_SHA%" -t "%FULL_IMAGE_LATEST%" .
         """
       }
     }
@@ -74,7 +81,7 @@ pipeline {
           docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
             -e APP_ENV=production ^
             -e APP_DEBUG=false ^
-            %FULL_IMAGE_SHA%
+            "%FULL_IMAGE_SHA%"
         """
 
         powershell '''
@@ -87,7 +94,7 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
           bat """
-            docker login %ACR_LOGIN_SERVER% -u %ACR_USER% -p %ACR_PASS%
+            docker login ${params.ACR_LOGIN_SERVER} -u %ACR_USER% -p %ACR_PASS%
           """
         }
       }
@@ -96,8 +103,8 @@ pipeline {
     stage('Push to ACR') {
       steps {
         bat """
-          docker push %FULL_IMAGE_SHA%
-          docker push %FULL_IMAGE_LATEST%
+          docker push "%FULL_IMAGE_SHA%"
+          docker push "%FULL_IMAGE_LATEST%"
         """
       }
     }
@@ -139,7 +146,7 @@ pipeline {
     stage('Cleanup') {
       steps {
         powershell '''
-          ./scripts/cleanup.ps1 -ContainerName $env:TEST_CONTAINER -ImageSha $env:FULL_IMAGE_SHA -ImageLatest $env:FULL_IMAGE_LATEST
+          ./scripts/cleanup.ps1 -ContainerName $env:TEST_CONTAINER -ImageSha $env:FULL_IMAGE_SHA -ImageLatest $env:FULL_IMAGE_LATEST -IgnoreErrors
         '''
       }
     }
