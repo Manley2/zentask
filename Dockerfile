@@ -17,7 +17,6 @@ WORKDIR /app
 
 # Copy composer files dulu agar cache optimal
 COPY composer.json composer.lock ./
-<<<<<<< HEAD
 # IMPORTANT: no-scripts agar tidak memanggil artisan sebelum source dicopy
 RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
 # Baru copy source (termasuk artisan)
@@ -27,7 +26,6 @@ RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --opt
 RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
 # Copy source setelah vendor siap
->>>>>>> 0716ac3a38206321ee00cd636fd3f7bc63e604ab
 COPY . .
 
 # Optimalkan autoload (tanpa scripts)
