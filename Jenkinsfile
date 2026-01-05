@@ -17,15 +17,15 @@ pipeline {
   }
 
   environment {
-    // Jenkins Credential ID untuk ACR (Username with password)
+    // === Jenkins Credential IDs ===
+    // ACR (Username with password)
     ACR_CRED_ID = 'acr-admin-zentask'
 
-    // Jenkins Secret Text credential IDs untuk Azure Service Principal
-    AZ_TENANT_ID_CRED = 'acr-admin-zentask'
-    AZ_CLIENT_ID_CRED = 'acr-admin-zentask'
-    AZ_CLIENT_SECRET_CRED = 'acr-admin-zentask'
+    // Azure Service Principal (Secret Text)
+    AZ_TENANT_ID_CRED     = 'azure-tenant-id'
+    AZ_CLIENT_ID_CRED     = 'azure-client-id'
+    AZ_CLIENT_SECRET_CRED = 'azure-client-secret'
 
-    // nama container sementara untuk test
     TEST_CONTAINER = 'zentask_test_container'
   }
 
@@ -33,24 +33,24 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
+        bat 'git --version'
+        bat 'git rev-parse --short HEAD'
       }
     }
 
     stage('Prepare Environment') {
       steps {
         script {
-          // 1) paling aman: pakai commit dari Jenkins
           def sha = (env.GIT_COMMIT ?: "").trim()
           if (sha.length() >= 7) {
             env.GIT_SHA = sha.substring(0, 7)
           } else {
-            // 2) fallback: ambil dari git via PowerShell (lebih bersih dari bat di Windows)
             env.GIT_SHA = powershell(returnStdout: true, script: '(git rev-parse --short HEAD).Trim()').trim()
           }
 
-          env.IMAGE_TAG = env.GIT_SHA
-          env.FULL_IMAGE_SHA = "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:${env.IMAGE_TAG}"
-          env.FULL_IMAGE_LATEST = "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:latest"
+          env.IMAGE_TAG        = env.GIT_SHA
+          env.FULL_IMAGE_SHA   = "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:${env.IMAGE_TAG}"
+          env.FULL_IMAGE_LATEST= "${params.ACR_LOGIN_SERVER}/${params.IMAGE_NAME}:latest"
         }
 
         bat """
@@ -72,7 +72,6 @@ pipeline {
 
     stage('Test Image') {
       steps {
-        // Run container locally and check /health
         bat """
           docker rm -f %TEST_CONTAINER% 2>nul || exit /b 0
         """
@@ -85,6 +84,7 @@ pipeline {
         """
 
         powershell '''
+          $ErrorActionPreference = "Stop"
           ./scripts/healthcheck.ps1 -Url ("http://localhost:{0}/health" -f $env:APP_PORT_LOCAL) -TimeoutSeconds 120
         '''
       }
@@ -92,9 +92,12 @@ pipeline {
 
     stage('Login to ACR') {
       steps {
-        withCredentials([usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+        withCredentials([
+          usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')
+        ]) {
           bat """
-            docker login ${params.ACR_LOGIN_SERVER} -u %ACR_USER% -p %ACR_PASS%
+            echo Logging in to ACR...
+            docker login %ACR_LOGIN_SERVER% -u %ACR_USER% -p %ACR_PASS%
           """
         }
       }
@@ -110,71 +113,63 @@ pipeline {
     }
 
     stage('Deploy to Azure Web App') {
-        steps {
-            echo "DEPLOY: stage entered"
+      steps {
+        echo "DEPLOY: stage entered"
 
-            withCredentials([
-            usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
-            string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
-            string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
-            string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
-            ]) {
-            echo "DEPLOY: credentials bound, running script..."
+        withCredentials([
+          usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
+          string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
+          string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
+          string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
+        ]) {
+          powershell(label: 'Deploy WebApp', script: '''
+            $ErrorActionPreference = "Stop"
+            $ProgressPreference    = "SilentlyContinue"
+            $VerbosePreference     = "Continue"
+            $InformationPreference = "Continue"
 
-            powershell(label: 'Deploy WebApp', script: '''
-                $ErrorActionPreference = "Stop"
-                $ProgressPreference    = "SilentlyContinue"
-                $VerbosePreference     = "Continue"
-                $InformationPreference = "Continue"
+            Write-Host "DEPLOY: subscription=$env:AZ_SUBSCRIPTION_ID rg=$env:AZ_RESOURCE_GROUP app=$env:AZ_WEBAPP_NAME"
+            Write-Host "DEPLOY: image=$env:FULL_IMAGE_SHA"
+            Write-Host "DEPLOY: acr=$env:ACR_LOGIN_SERVER user=$env:ACR_USER"
 
-                $scriptPath = Join-Path $env:WORKSPACE "scripts\\deploy-azure-webapp.ps1"
-                if (!(Test-Path $scriptPath)) { throw "Deploy script not found: $scriptPath" }
+            $scriptPath = Join-Path $env:WORKSPACE "scripts\\deploy-azure-webapp.ps1"
+            if (!(Test-Path $scriptPath)) { throw "Deploy script not found: $scriptPath" }
 
-                $logPath = Join-Path $env:WORKSPACE ("deploy-azure-webapp-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
-                Write-Host "Deploy log: $logPath"
+            $logPath = Join-Path $env:WORKSPACE ("deploy-azure-webapp-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
+            Write-Host "DEPLOY LOG: $logPath"
 
-                try {
-                & $scriptPath `
-                    -SubscriptionId $env:AZ_SUBSCRIPTION_ID `
-                    -TenantId $env:AZ_TENANT_ID `
-                    -ClientId $env:AZ_CLIENT_ID `
-                    -ClientSecret $env:AZ_CLIENT_SECRET `
-                    -ResourceGroup $env:AZ_RESOURCE_GROUP `
-                    -WebAppName $env:AZ_WEBAPP_NAME `
-                    -ImageName $env:FULL_IMAGE_SHA `
-                    -RegistryServer $env:ACR_LOGIN_SERVER `
-                    -RegistryUser $env:ACR_USER `
-                    -RegistryPassword $env:ACR_PASS `
-                    *>&1 | Tee-Object -FilePath $logPath
+            try {
+              & $scriptPath `
+                -SubscriptionId $env:AZ_SUBSCRIPTION_ID `
+                -TenantId $env:AZ_TENANT_ID `
+                -ClientId $env:AZ_CLIENT_ID `
+                -ClientSecret $env:AZ_CLIENT_SECRET `
+                -ResourceGroup $env:AZ_RESOURCE_GROUP `
+                -WebAppName $env:AZ_WEBAPP_NAME `
+                -ImageName $env:FULL_IMAGE_SHA `
+                -RegistryServer $env:ACR_LOGIN_SERVER `
+                -RegistryUser $env:ACR_USER `
+                -RegistryPassword $env:ACR_PASS `
+                *>&1 | Tee-Object -FilePath $logPath
 
-                if ($LASTEXITCODE -ne 0) { throw "Deploy script failed with exit code $LASTEXITCODE" }
-                Write-Host "DEPLOY OK"
-                } catch {
-                Write-Host "DEPLOY FAILED: $($_.Exception.Message)"
-                if (Test-Path $logPath) { Get-Content $logPath -Tail 200 }
-                throw
-                }
-            ''')
+              if ($LASTEXITCODE -ne 0) { throw "Deploy script failed with exit code $LASTEXITCODE" }
+              Write-Host "DEPLOY OK"
+            } catch {
+              Write-Host "DEPLOY FAILED: $($_.Exception.Message)"
+              if (Test-Path $logPath) { Get-Content $logPath -Tail 200 }
+              throw
             }
-
-            echo "DEPLOY: stage finished"
+          ''')
         }
+      }
     }
-
 
     stage('Health Check') {
       steps {
         powershell '''
+          $ErrorActionPreference = "Stop"
           $url = "https://{0}.azurewebsites.net/health" -f $env:AZ_WEBAPP_NAME
           ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 180
-        '''
-      }
-    }
-
-    stage('Cleanup') {
-      steps {
-        powershell '''
-          ./scripts/cleanup.ps1 -ContainerName $env:TEST_CONTAINER -ImageSha $env:FULL_IMAGE_SHA -ImageLatest $env:FULL_IMAGE_LATEST -IgnoreErrors
         '''
       }
     }
@@ -182,8 +177,12 @@ pipeline {
 
   post {
     always {
-      echo "Post Actions: ensure cleanup"
+      echo "Post Actions: ensure cleanup + archive deploy logs"
+
+      archiveArtifacts artifacts: 'deploy-azure-webapp-*.log', allowEmptyArchive: true
+
       powershell '''
+        $ErrorActionPreference = "Continue"
         ./scripts/cleanup.ps1 -ContainerName $env:TEST_CONTAINER -ImageSha $env:FULL_IMAGE_SHA -ImageLatest $env:FULL_IMAGE_LATEST -IgnoreErrors
       '''
     }
