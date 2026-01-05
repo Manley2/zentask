@@ -81,24 +81,28 @@ pipeline {
     }
 
     stage('Test Image') {
-      steps {
-        bat """
-          docker rm -f %TEST_CONTAINER% 2>nul || exit /b 0
-        """
+        steps {
+            bat """
+            docker rm -f %TEST_CONTAINER% 2>nul || exit /b 0
+            """
 
-        bat """
-          docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
-            -e APP_ENV=production ^
-            -e APP_DEBUG=false ^
-            "%FULL_IMAGE_SHA%"
-        """
+            withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
+            bat """
+                docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
+                -e APP_ENV=production ^
+                -e APP_DEBUG=false ^
+                -e APP_KEY=%APP_KEY% ^
+                "%FULL_IMAGE_SHA%"
+            """
+            }
 
-        powershell '''
-          $ErrorActionPreference = "Stop"
-          ./scripts/healthcheck.ps1 -Url ("http://localhost:{0}/health" -f $env:APP_PORT_LOCAL) -TimeoutSeconds 120
-        '''
-      }
+            powershell '''
+            $ErrorActionPreference = "Stop"
+            ./scripts/healthcheck.ps1 -Url ("http://localhost:{0}/" -f $env:APP_PORT_LOCAL) -TimeoutSeconds 120
+            '''
+        }
     }
+
 
     stage('Login to ACR') {
       steps {
