@@ -1,60 +1,62 @@
-# ---------- Stage 1: Node build (Vite) ----------
-FROM node:20-alpine AS nodebuild
+# syntax=docker/dockerfile:1
+# Laravel (PHP 8.2) + Nginx + Supervisor + Vite dev server (npm run dev)
 
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-
-# ---------- Stage 2: PHP deps (Composer) ----------
+# ---------- Stage 1: Composer deps ----------
 FROM composer:2 AS composerbuild
-
 WORKDIR /app
 
-# Copy composer files dulu agar cache optimal
+# Cache-friendly: copy only composer manifests first
 COPY composer.json composer.lock ./
 
-# Install dependencies tanpa menjalankan script artisan
-RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
-
-# Copy source setelah vendor siap
-COPY . .
-
-# Optimalkan autoload (tanpa scripts)
-RUN composer dump-autoload --optimize
+# Install deps without running scripts (artisan belum ada di stage ini)
+RUN composer install --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
 
 
-# ---------- Stage 3: Runtime (Nginx + PHP-FPM) ----------
+# ---------- Stage 2: Runtime ----------
 FROM php:8.2-fpm-bullseye
 
-# Install system dependencies + PHP extensions
-RUN apt-get update && apt-get install -y nginx supervisor git unzip zip curl libzip-dev libpng-dev libonig-dev libxml2-dev \
-    && docker-php-ext-install pdo_mysql mbstring zip bcmath \
-    && rm -rf /var/lib/apt/lists/*
+# System deps + PHP extensions + Node.js 20 (for Vite dev)
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates curl gnupg \
+      nginx supervisor git unzip zip \
+      libzip-dev libpng-dev libonig-dev libxml2-dev; \
+    docker-php-ext-install pdo_mysql mbstring zip bcmath; \
+    \
+    # Install Node.js 20 via NodeSource
+    mkdir -p /etc/apt/keyrings; \
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" > /etc/apt/sources.list.d/nodesource.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends nodejs; \
+    \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www
 
-# Copy aplikasi
+# Cache-friendly: install node modules before copying full source
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+# Copy app source
 COPY . /var/www
 
-# Copy vendor dari composer stage
+# Copy vendor from composer stage
 COPY --from=composerbuild /app/vendor /var/www/vendor
-
-# Copy hasil build Vite
-COPY --from=nodebuild /app/public/build /var/www/public/build
 
 # Nginx + Supervisor + Entrypoint
 COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/default.conf /etc/nginx/conf.d/default.conf
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh \
+    && mkdir -p /var/www/storage /var/www/bootstrap/cache \
     && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
 
-EXPOSE 80
+# Nginx (80) + Vite dev server (5173)
+EXPOSE 80 5173
 
 ENTRYPOINT ["/entrypoint.sh"]
