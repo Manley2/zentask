@@ -77,33 +77,53 @@ pipeline {
 
     stage('Test Image') {
         steps {
-            // 1) Cleanup container lama (tidak bikin gagal)
+            // 1) Cleanup container lama
             bat '''
             @echo on
             docker rm -f %TEST_CONTAINER% >NUL 2>NUL
             echo [test] cleaned old container (if any): %TEST_CONTAINER%
             '''
 
-            // 2) Run container (kalau gagal, kelihatan errornya)
-            withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
-            bat '''
-                @echo on
-                docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
-                -e APP_ENV=production ^
-                -e APP_DEBUG=false ^
-                -e APP_KEY=%APP_KEY% ^
-                -e APP_URL=http://localhost:%APP_PORT_LOCAL% ^
-                -e LOG_CHANNEL=stderr ^
-                "%FULL_IMAGE_SHA%"
+            // 2) Run container dengan credentials
+            script {
+                withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
+                    // Gunakan PowerShell untuk handling environment variable yang lebih baik
+                    powershell """
+                    \$ErrorActionPreference = "Stop"
 
-                if errorlevel 1 (
-                echo [test] docker run failed
-                exit /b 1
-                )
-            '''
+                    Write-Host "[test] Starting container: \$env:TEST_CONTAINER on port \$env:APP_PORT_LOCAL"
+
+                    docker run -d ``
+                    --name \$env:TEST_CONTAINER ``
+                    -p "\$env:APP_PORT_LOCAL`:80" ``
+                    -e APP_ENV=production ``
+                    -e APP_DEBUG=false ``
+                    -e APP_KEY=\$env:APP_KEY ``
+                    -e APP_URL=http://localhost:\$env:APP_PORT_LOCAL ``
+                    -e LOG_CHANNEL=stderr ``
+                    \$env:FULL_IMAGE_SHA
+
+                    if (\$LASTEXITCODE -ne 0) {
+                        throw "Docker run failed with exit code \$LASTEXITCODE"
+                    }
+
+                    Write-Host "[test] Container started successfully"
+
+                    # Wait a bit for container to initialize
+                    Start-Sleep -Seconds 5
+
+                    # Check if container is still running
+                    \$running = docker ps --filter "name=\$env:TEST_CONTAINER" --format "{{.Names}}"
+                    if (-not \$running) {
+                        Write-Host "[test] ERROR: Container stopped unexpectedly"
+                        docker logs \$env:TEST_CONTAINER
+                        throw "Container failed to stay running"
+                    }
+                    """
+                }
             }
 
-            // 3) Healthcheck (kalau gagal, keluarkan logs biar ketahuan root cause)
+            // 3) Healthcheck
             powershell '''
             $ErrorActionPreference = "Continue"
 
