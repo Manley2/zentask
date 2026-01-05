@@ -76,34 +76,56 @@ pipeline {
     }
 
     stage('Test Image') {
-      steps {
-        // Cleanup container jika ada (tidak bikin step fail)
-        bat """
-          docker rm -f %TEST_CONTAINER% >NUL 2>NUL
-          echo [test] cleaned old container (if any): %TEST_CONTAINER%
-        """
+        steps {
+            // 1) Cleanup container lama (tidak bikin gagal)
+            bat '''
+            @echo on
+            docker rm -f %TEST_CONTAINER% >NUL 2>NUL
+            echo [test] cleaned old container (if any): %TEST_CONTAINER%
+            '''
 
-        // Jalankan container dengan APP_KEY + log ke stderr supaya docker logs berguna
-        withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
-          bat """
-            docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
-              -e APP_ENV=production ^
-              -e APP_DEBUG=false ^
-              -e APP_KEY=%APP_KEY% ^
-              -e APP_URL=http://localhost:%APP_PORT_LOCAL% ^
-              -e LOG_CHANNEL=stderr ^
-              "%FULL_IMAGE_SHA%"
-          """
+            // 2) Run container (kalau gagal, kelihatan errornya)
+            withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
+            bat '''
+                @echo on
+                docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
+                -e APP_ENV=production ^
+                -e APP_DEBUG=false ^
+                -e APP_KEY=%APP_KEY% ^
+                -e APP_URL=http://localhost:%APP_PORT_LOCAL% ^
+                -e LOG_CHANNEL=stderr ^
+                "%FULL_IMAGE_SHA%"
+
+                if errorlevel 1 (
+                echo [test] docker run failed
+                exit /b 1
+                )
+            '''
+            }
+
+            // 3) Healthcheck (kalau gagal, keluarkan logs biar ketahuan root cause)
+            powershell '''
+            $ErrorActionPreference = "Continue"
+
+            $url = ("http://localhost:{0}/health" -f $env:APP_PORT_LOCAL)
+            Write-Host "[healthcheck] Checking $url"
+
+            try {
+                ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 180
+                Write-Host "[healthcheck] OK"
+            }
+            catch {
+                Write-Host "[healthcheck] FAILED: $($_.Exception.Message)"
+                Write-Host "---- docker ps ----"
+                docker ps --filter "name=$env:TEST_CONTAINER"
+                Write-Host "---- docker logs (tail 200) ----"
+                docker logs --tail 200 $env:TEST_CONTAINER
+                Write-Host "---- laravel logs (tail 200) ----"
+                docker exec $env:TEST_CONTAINER sh -lc "tail -n 200 /var/www/storage/logs/laravel*.log 2>/dev/null || true"
+                exit 1
+            }
+            '''
         }
-
-        // Healthcheck: lebih stabil pakai /health (pastikan route ada)
-        powershell '''
-          $ErrorActionPreference = "Stop"
-          $url = ("http://localhost:{0}/" -f $env:APP_PORT_LOCAL)
-          Write-Host "[healthcheck] Checking $url"
-          ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 180
-        '''
-      }
     }
 
     stage('Login to ACR') {
