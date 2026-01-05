@@ -24,7 +24,7 @@ RUN composer install \
   --optimize-autoloader \
   --no-scripts
 
-# Copy full source AFTER install to avoid scripts needing artisan before code exists
+# Copy full source AFTER install (avoid scripts needing artisan before code exists)
 COPY . .
 RUN composer dump-autoload --optimize
 
@@ -35,7 +35,8 @@ FROM php:8.2-fpm-bullseye
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      nginx supervisor git unzip zip curl \
+      nginx supervisor \
+      git unzip zip curl \
       libzip-dev libpng-dev libonig-dev libxml2-dev; \
     docker-php-ext-install pdo_mysql mbstring zip bcmath; \
     rm -rf /var/lib/apt/lists/*
@@ -55,9 +56,14 @@ COPY docker/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh \
-    && mkdir -p /var/www/storage /var/www/bootstrap/cache \
-    && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
+# IMPORTANT: sanitize entrypoint (anti CRLF + anti BOM) + executable
+RUN set -eux; \
+    sed -i 's/\r$//' /entrypoint.sh; \
+    sed -i '1s/^\xEF\xBB\xBF//' /entrypoint.sh; \
+    chmod 755 /entrypoint.sh; \
+    /bin/sh -n /entrypoint.sh; \
+    mkdir -p /var/www/storage /var/www/bootstrap/cache; \
+    chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || true
 
 EXPOSE 80
 ENTRYPOINT ["/entrypoint.sh"]

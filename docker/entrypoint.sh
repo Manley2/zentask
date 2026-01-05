@@ -3,16 +3,19 @@ set -e
 
 cd /var/www
 
-# Optional: create .env if missing
+# Create .env only if missing (local/dev convenience)
 if [ ! -f .env ] && [ -f .env.example ]; then
   echo "[entrypoint] .env not found, copying from .env.example"
   cp .env.example .env
 fi
 
-# Optional: generate APP_KEY if missing (only if env file exists)
-if [ -f .env ]; then
-  if ! grep -q "^APP_KEY=base64:" .env; then
-    echo "[entrypoint] APP_KEY missing, generating..."
+# IMPORTANT (Azure best practice):
+# Jangan generate APP_KEY otomatis di production.
+# APP_KEY harus diset dari Azure App Settings / pipeline secret.
+# Kalau kamu mau enable untuk local saja, pakai flag RUN_KEYGEN=true.
+if [ "${RUN_KEYGEN}" = "true" ]; then
+  if [ -f .env ] && ! grep -q "^APP_KEY=base64:" .env; then
+    echo "[entrypoint] RUN_KEYGEN=true and APP_KEY missing, generating..."
     php artisan key:generate --force || true
   fi
 fi
