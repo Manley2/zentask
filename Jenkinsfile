@@ -82,88 +82,95 @@ pipeline {
     }
 
     stage('Deploy to Azure Web App') {
-      steps {
-        withCredentials([
-          usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
-          string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
-          string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
-          string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
-        ]) {
-          powershell '''
-            $ErrorActionPreference = "Stop"
-            $ProgressPreference    = "SilentlyContinue"
+        steps {
+            withCredentials([
+            usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
+            string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
+            string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
+            string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
+            ]) {
+            powershell '''
+                $ErrorActionPreference = "Stop"
+                $ProgressPreference    = "SilentlyContinue"
 
-            Write-Host "AZ CLI version:"
-            az --version
+                function Run-Az([string]$cmd) {
+                Write-Host ">>> $cmd"
+                $out = & powershell -NoProfile -Command $cmd 2>&1
+                $code = $LASTEXITCODE
+                if ($out) { $out | ForEach-Object { Write-Host $_ } }
+                if ($code -ne 0) {
+                    throw "AZ command failed (exit=$code): $cmd"
+                }
+                }
 
-            Write-Host "Login Azure (service principal)..."
-            az login --service-principal `
-              -u $env:AZ_CLIENT_ID `
-              -p $env:AZ_CLIENT_SECRET `
-              --tenant $env:AZ_TENANT_ID | Out-Null
+                Write-Host "AZ CLI version:"
+                az --version
 
-            Write-Host "Set subscription: $env:AZ_SUBSCRIPTION_ID"
-            az account set --subscription $env:AZ_SUBSCRIPTION_ID
+                Run-Az "az login --service-principal -u `"$env:AZ_CLIENT_ID`" -p `"$env:AZ_CLIENT_SECRET`" --tenant `"$env:AZ_TENANT_ID`""
 
-            Write-Host "Set container config..."
-            Write-Host " - webapp=$env:AZ_WEBAPP_NAME rg=$env:AZ_RESOURCE_GROUP"
-            Write-Host " - image=$env:FULL_IMAGE_SHA"
-            Write-Host " - registry=https://$env:ACR_LOGIN_SERVER"
+                Run-Az "az account set --subscription `"$env:AZ_SUBSCRIPTION_ID`""
 
-            az webapp config container set `
-              --name $env:AZ_WEBAPP_NAME `
-              --resource-group $env:AZ_RESOURCE_GROUP `
-              --docker-custom-image-name $env:FULL_IMAGE_SHA `
-              --docker-registry-server-url ("https://" + $env:ACR_LOGIN_SERVER) `
-              --docker-registry-server-user $env:ACR_USER `
-              --docker-registry-server-password $env:ACR_PASS | Out-Null
+                Write-Host "Deploy target:"
+                Write-Host " - RG     : $env:AZ_RESOURCE_GROUP"
+                Write-Host " - WebApp : $env:AZ_WEBAPP_NAME"
+                Write-Host " - Image  : $env:FULL_IMAGE_SHA"
+                Write-Host " - ACR    : $env:ACR_LOGIN_SERVER"
 
-            # WAJIB: set port 80 agar reverse-proxy Azure benar
-            az webapp config appsettings set `
-              --name $env:AZ_WEBAPP_NAME `
-              --resource-group $env:AZ_RESOURCE_GROUP `
-              --settings WEBSITES_PORT=80 | Out-Null
+                Run-Az "az webapp config container set --name `"$env:AZ_WEBAPP_NAME`" --resource-group `"$env:AZ_RESOURCE_GROUP`" --docker-custom-image-name `"$env:FULL_IMAGE_SHA`" --docker-registry-server-url `"https://$env:ACR_LOGIN_SERVER`" --docker-registry-server-user `"$env:ACR_USER`" --docker-registry-server-password `"$env:ACR_PASS`""
 
-            Write-Host "Restart webapp..."
-            az webapp restart --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP | Out-Null
+                # penting untuk linux custom container
+                Run-Az "az webapp config appsettings set --name `"$env:AZ_WEBAPP_NAME`" --resource-group `"$env:AZ_RESOURCE_GROUP`" --settings WEBSITES_PORT=80"
 
-            Write-Host "Show container config (verify):"
-            az webapp config container show `
-              --name $env:AZ_WEBAPP_NAME `
-              --resource-group $env:AZ_RESOURCE_GROUP `
-              --query "{image:dockerCustomImageName, server:dockerRegistryServerUrl}" -o json
+                # optional tapi sangat membantu: enable container logging
+                Run-Az "az webapp log config --name `"$env:AZ_WEBAPP_NAME`" --resource-group `"$env:AZ_RESOURCE_GROUP`" --docker-container-logging filesystem --level information"
 
-            Write-Host "Deploy OK"
-          '''
+                Run-Az "az webapp restart --name `"$env:AZ_WEBAPP_NAME`" --resource-group `"$env:AZ_RESOURCE_GROUP`""
+
+                Write-Host "Verify container config:"
+                Run-Az "az webapp config container show --name `"$env:AZ_WEBAPP_NAME`" --resource-group `"$env:AZ_RESOURCE_GROUP`" -o json"
+
+                Write-Host "Deploy OK"
+            '''
+            }
         }
-      }
     }
 
     stage('Health Check') {
-      steps {
-        powershell '''
-          $ErrorActionPreference = "Stop"
-          Start-Sleep -Seconds 30
+        steps {
+            powershell '''
+            $ErrorActionPreference = "Stop"
+            $ProgressPreference    = "SilentlyContinue"
 
-          $url = "https://{0}.azurewebsites.net/" -f $env:AZ_WEBAPP_NAME
-          Write-Host "Checking: $url"
+            Start-Sleep -Seconds 30
+            $url = "https://{0}.azurewebsites.net/" -f $env:AZ_WEBAPP_NAME
+            Write-Host "Checking: $url"
 
-          try {
-            Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30 | Out-Null
-            Write-Host "Health OK"
-          } catch {
-            Write-Host "Health FAILED. Tailing Azure logs..."
             try {
-              az webapp log tail --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP
+                $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30
+                Write-Host ("HTTP " + $resp.StatusCode)
+                Write-Host "Health OK"
             } catch {
-              Write-Host "Cannot tail logs (az not logged in or permission issue)."
+                Write-Host "Health FAILED: $($_.Exception.Message)"
+                Write-Host "=== DEBUG: webapp status ==="
+                az webapp show --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP -o table 2>&1 | ForEach-Object { Write-Host $_ }
+
+                Write-Host "=== DEBUG: container config ==="
+                az webapp config container show --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP -o json 2>&1 | ForEach-Object { Write-Host $_ }
+
+                Write-Host "=== DEBUG: appsettings (filtered) ==="
+                az webapp config appsettings list --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP `
+                --query "[?name=='WEBSITES_PORT' || starts_with(name,'DB_') || name=='APP_ENV' || name=='APP_DEBUG' || name=='APP_URL' || name=='SESSION_DRIVER' || name=='CACHE_DRIVER'].{name:name,value:value}" `
+                -o table 2>&1 | ForEach-Object { Write-Host $_ }
+
+                Write-Host "=== DEBUG: last container logs (tail) ==="
+                # ini tidak streaming lama, cuma up to 100 lines biasanya
+                az webapp log tail --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP 2>&1 | Select-Object -First 120 | ForEach-Object { Write-Host $_ }
+
+                throw
             }
-            throw
-          }
-        '''
-      }
+            '''
+        }
     }
-  }
 
   post {
     always {
