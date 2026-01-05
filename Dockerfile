@@ -17,10 +17,6 @@ WORKDIR /app
 
 # Copy composer files dulu agar cache optimal
 COPY composer.json composer.lock ./
-# IMPORTANT: no-scripts agar tidak memanggil artisan sebelum source dicopy
-RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
-# Baru copy source (termasuk artisan)
-=======
 
 # Install dependencies tanpa menjalankan script artisan
 RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
@@ -53,7 +49,6 @@ COPY --from=nodebuild /app/public/build /var/www/public/build
 
 # Nginx + Supervisor + Entrypoint
 COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
