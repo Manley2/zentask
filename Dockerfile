@@ -11,13 +11,7 @@ WORKDIR /app
 # Copy composer files dulu (biar cache kepakai)
 COPY composer.json composer.lock ./
 # IMPORTANT: no-scripts agar tidak memanggil artisan sebelum source dicopy
-RUN composer install \
-  --no-dev \
-  --no-interaction \
-  --prefer-dist \
-  --no-progress \
-  --optimize-autoloader \
-  --no-scripts
+RUN composer install --no-dev --no-interaction --prefer-dist --no-progress --optimize-autoloader --no-scripts
 # Baru copy source (termasuk artisan)
 COPY . .
 # (Optional) rapikan autoload (tanpa menjalankan scripts)
