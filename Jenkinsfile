@@ -110,28 +110,70 @@ pipeline {
     }
 
     stage('Deploy to Azure Web App') {
-      steps {
-        withCredentials([
-          usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
-          string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
-          string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
-          string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
-        ]) {
-          powershell '''
-            ./scripts/deploy-azure-webapp.ps1 `
-              -SubscriptionId $env:AZ_SUBSCRIPTION_ID `
-              -TenantId $env:AZ_TENANT_ID `
-              -ClientId $env:AZ_CLIENT_ID `
-              -ClientSecret $env:AZ_CLIENT_SECRET `
-              -ResourceGroup $env:AZ_RESOURCE_GROUP `
-              -WebAppName $env:AZ_WEBAPP_NAME `
-              -ImageName $env:FULL_IMAGE_SHA `
-              -RegistryServer $env:ACR_LOGIN_SERVER `
-              -RegistryUser $env:ACR_USER `
-              -RegistryPassword $env:ACR_PASS
-          '''
+        steps {
+            withCredentials([
+            usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
+            string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
+            string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
+            string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
+            ]) {
+            powershell '''
+                $ErrorActionPreference = "Stop"
+                $ProgressPreference    = "SilentlyContinue"
+                $VerbosePreference     = "Continue"
+                $InformationPreference = "Continue"
+
+                $scriptPath = Join-Path $env:WORKSPACE "scripts\\deploy-azure-webapp.ps1"
+                if (!(Test-Path $scriptPath)) {
+                throw "Deploy script not found: $scriptPath"
+                }
+
+                $logPath = Join-Path $env:WORKSPACE ("deploy-azure-webapp-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
+
+                Write-Host "=== DEPLOY START ==="
+                Write-Host "Workspace      : $env:WORKSPACE"
+                Write-Host "WebApp         : $env:AZ_WEBAPP_NAME"
+                Write-Host "Resource Group : $env:AZ_RESOURCE_GROUP"
+                Write-Host "Subscription   : $env:AZ_SUBSCRIPTION_ID"
+                Write-Host "Image          : $env:FULL_IMAGE_SHA"
+                Write-Host "Registry       : $env:ACR_LOGIN_SERVER"
+                Write-Host "Log file       : $logPath"
+                Write-Host "==============="
+
+                try {
+                # Jalankan dan paksa semua stream masuk log + console
+                & $scriptPath `
+                    -SubscriptionId $env:AZ_SUBSCRIPTION_ID `
+                    -TenantId $env:AZ_TENANT_ID `
+                    -ClientId $env:AZ_CLIENT_ID `
+                    -ClientSecret $env:AZ_CLIENT_SECRET `
+                    -ResourceGroup $env:AZ_RESOURCE_GROUP `
+                    -WebAppName $env:AZ_WEBAPP_NAME `
+                    -ImageName $env:FULL_IMAGE_SHA `
+                    -RegistryServer $env:ACR_LOGIN_SERVER `
+                    -RegistryUser $env:ACR_USER `
+                    -RegistryPassword $env:ACR_PASS `
+                    *>&1 | Tee-Object -FilePath $logPath
+
+                $exitCode = $LASTEXITCODE
+                Write-Host "Deploy script exit code: $exitCode"
+                if ($exitCode -ne 0) {
+                    throw "Deploy script failed with exit code $exitCode. See log: $logPath"
+                }
+
+                Write-Host "=== DEPLOY SUCCESS ==="
+                }
+                catch {
+                Write-Host "=== DEPLOY FAILED ==="
+                Write-Host $_.Exception.Message
+                Write-Host "---- Last 200 lines of deploy log ----"
+                if (Test-Path $logPath) { Get-Content $logPath -Tail 200 }
+                Write-Host "-------------------------------------"
+                throw
+                }
+            '''
+            }
         }
-      }
     }
 
     stage('Health Check') {
