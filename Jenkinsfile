@@ -236,7 +236,7 @@ pipeline {
             Write-Host "Registry User: $env:ACR_USER"
             Write-Host ""
 
-            $scriptPath = Join-Path $env:WORKSPACE "scripts\deploy-azure-webapp.ps1"
+            $scriptPath = Join-Path $env:WORKSPACE "scripts/deploy-azure-webapp.ps1"
             if (!(Test-Path $scriptPath)) {
               throw "Deploy script not found: $scriptPath"
             }
