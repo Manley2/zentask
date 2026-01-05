@@ -9,25 +9,18 @@ pipeline {
 
   parameters {
     string(name: 'ACR_LOGIN_SERVER', defaultValue: 'zentask.azurecr.io', description: 'ACR login server (contoh: zentask.azurecr.io)')
-    string(name: 'IMAGE_NAME', defaultValue: 'zentask', description: 'Nama image di registry')
-    string(name: 'AZ_RESOURCE_GROUP', defaultValue: 'tubes-zentask', description: 'Resource Group Web App')
-    string(name: 'AZ_WEBAPP_NAME', defaultValue: 'Zentask-web', description: 'Nama Azure Web App (App Service)')
+    string(name: 'IMAGE_NAME',       defaultValue: 'zentask',            description: 'Nama image di registry')
+    string(name: 'AZ_RESOURCE_GROUP',defaultValue: 'tubes-zentask',       description: 'Resource Group Web App')
+    string(name: 'AZ_WEBAPP_NAME',   defaultValue: 'zentask-web',         description: 'Nama Azure Web App (App Service)')
     string(name: 'AZ_SUBSCRIPTION_ID', defaultValue: '738fb47b-f5e3-4518-b6ab-6b5865958218', description: 'Azure Subscription ID')
   }
 
   environment {
-    // === Jenkins Credential IDs ===
-    // ACR (Username with password)
-    ACR_CRED_ID = 'acr-admin-zentask'
-
-    // Azure Service Principal (Secret Text)
-    AZ_TENANT_ID_CRED     = 'azure-tenant-id'
-    AZ_CLIENT_ID_CRED     = 'azure-client-id'
-    AZ_CLIENT_SECRET_CRED = 'azure-client-secret'
-
-    // Optional: Laravel APP KEY for local image test (Secret Text)
-    // (Kalau kamu tidak punya/ga perlu, boleh hapus stage Test Image ENV injection)
-    LARAVEL_APP_KEY_CRED = 'laravel-app-key'
+    // Jenkins Credential IDs
+    ACR_CRED_ID           = 'acr-admin-zentask'     // Username+Password (ACR Access Keys)
+    AZ_TENANT_ID_CRED     = 'azure-tenant-id'       // Secret text
+    AZ_CLIENT_ID_CRED     = 'azure-client-id'       // Secret text
+    AZ_CLIENT_SECRET_CRED = 'azure-client-secret'   // Secret text
   }
 
   stages {
@@ -35,118 +28,56 @@ pipeline {
       steps {
         checkout scm
         script {
-          // Ambil short SHA (mirip versi macOS)
-          env.GIT_COMMIT_SHORT = powershell(
-            returnStdout: true,
-            script: '(git rev-parse --short HEAD).Trim()'
-          ).trim()
+          env.GIT_COMMIT_SHORT = powershell(returnStdout: true, script: '(git rev-parse --short HEAD).Trim()').trim()
 
           env.ACR_LOGIN_SERVER = params.ACR_LOGIN_SERVER
           env.IMAGE_NAME       = params.IMAGE_NAME
+          env.AZ_RESOURCE_GROUP  = params.AZ_RESOURCE_GROUP
+          env.AZ_WEBAPP_NAME     = params.AZ_WEBAPP_NAME
+          env.AZ_SUBSCRIPTION_ID = params.AZ_SUBSCRIPTION_ID
 
           env.FULL_IMAGE_SHA    = "${env.ACR_LOGIN_SERVER}/${env.IMAGE_NAME}:${env.GIT_COMMIT_SHORT}"
           env.FULL_IMAGE_LATEST = "${env.ACR_LOGIN_SERVER}/${env.IMAGE_NAME}:latest"
 
-          echo "Building commit: ${env.GIT_COMMIT_SHORT}"
+          echo "Commit: ${env.GIT_COMMIT_SHORT}"
           echo "Image SHA: ${env.FULL_IMAGE_SHA}"
-          echo "Image latest: ${env.FULL_IMAGE_LATEST}"
         }
-      }
-    }
-
-    stage('Prepare Environment') {
-      steps {
-        // Sama ide seperti macOS: buat .env kalau belum ada (buat build context)
-        powershell '''
-          $ErrorActionPreference = "Stop"
-          if (!(Test-Path ".env")) {
-            if (Test-Path ".env.example") {
-              Copy-Item ".env.example" ".env"
-              Write-Host "Created .env from .env.example"
-            } else {
-              Write-Host "No .env or .env.example found (OK if image handles it)"
-            }
-          } else {
-            Write-Host ".env already exists"
-          }
-        '''
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        // Kalau butuh platform linux/amd64 di Windows docker desktop, kamu bisa tambahkan:
-        // docker build --platform linux/amd64 ...
-        bat """
-          docker build -t "%FULL_IMAGE_SHA%" -t "%FULL_IMAGE_LATEST%" .
-        """
+        bat 'docker build -t "%FULL_IMAGE_SHA%" -t "%FULL_IMAGE_LATEST%" .'
       }
     }
 
     stage('Test Image') {
       steps {
-        // Test ringan seperti versi macOS: pastikan php jalan di image
-        // (Tidak perlu run full web server)
-        bat """
-          docker run --rm --entrypoint php "%FULL_IMAGE_SHA%" -v
-        """
+        bat 'docker run --rm --entrypoint php "%FULL_IMAGE_SHA%" -v'
       }
     }
 
     stage('Login to ACR') {
-        steps {
-            withCredentials([
-            usernamePassword(
-                credentialsId: 'acr-admin-zentask',
-                usernameVariable: 'ACR_USER',
-                passwordVariable: 'ACR_PASS'
-            )
-            ]) {
-            powershell '''
-                $ErrorActionPreference = "Stop"
-
-                Write-Host "Logging in to ACR: $env:ACR_LOGIN_SERVER"
-                Write-Host "Using user: $env:ACR_USER"
-
-                docker logout $env:ACR_LOGIN_SERVER 2>$null | Out-Null
-
-                docker login `
-                $env:ACR_LOGIN_SERVER `
-                -u $env:ACR_USER `
-                -p $env:ACR_PASS
-            '''
-            }
+      steps {
+        withCredentials([usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')]) {
+          powershell '''
+            $ErrorActionPreference = "Stop"
+            docker logout $env:ACR_LOGIN_SERVER 2>$null | Out-Null
+            docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USER -p $env:ACR_PASS
+          '''
         }
+      }
     }
-
 
     stage('Push to ACR') {
       steps {
-        script {
-          // retry push 3x seperti versi macOS
-          def pushWithRetry = { String imageRef ->
-            retry(3) {
-              try {
-                powershell """
-                  \$ErrorActionPreference = "Stop"
-                  Write-Host "Pushing ${imageRef}"
-                  docker push "${imageRef}"
-                """
-              } catch (Exception e) {
-                echo "Push failed, retrying in 10 seconds..."
-                sleep(time: 10, unit: 'SECONDS')
-                throw e
-              }
-            }
-          }
-
-          pushWithRetry(env.FULL_IMAGE_SHA)
-          pushWithRetry(env.FULL_IMAGE_LATEST)
-
-          echo "✅ Successfully pushed images:"
-          echo "   - ${env.FULL_IMAGE_SHA}"
-          echo "   - ${env.FULL_IMAGE_LATEST}"
-        }
+        powershell '''
+          $ErrorActionPreference = "Stop"
+          Write-Host "Pushing $env:FULL_IMAGE_SHA"
+          docker push "$env:FULL_IMAGE_SHA"
+          Write-Host "Pushing $env:FULL_IMAGE_LATEST"
+          docker push "$env:FULL_IMAGE_LATEST"
+        '''
       }
     }
 
@@ -158,128 +89,87 @@ pipeline {
           string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
           string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
         ]) {
-          // Paling aman: pakai script repo kamu (deploy-azure-webapp.ps1)
-          // Agar konsisten dengan Jenkinsfile kamu sebelumnya.
-          powershell(label: 'Deploy WebApp', script: '''
+          powershell '''
             $ErrorActionPreference = "Stop"
             $ProgressPreference    = "SilentlyContinue"
 
-            Write-Host "DEPLOY: subscription=$env:AZ_SUBSCRIPTION_ID rg=$env:AZ_RESOURCE_GROUP app=$env:AZ_WEBAPP_NAME"
-            Write-Host "DEPLOY: image=$env:FULL_IMAGE_SHA"
-            Write-Host "DEPLOY: acr=$env:ACR_LOGIN_SERVER user=$env:ACR_USER"
+            Write-Host "AZ CLI version:"
+            az --version
 
-            $scriptPath = Join-Path $env:WORKSPACE "scripts\\deploy-azure-webapp.ps1"
-            if (!(Test-Path $scriptPath)) { throw "Deploy script not found: $scriptPath" }
+            Write-Host "Login Azure (service principal)..."
+            az login --service-principal `
+              -u $env:AZ_CLIENT_ID `
+              -p $env:AZ_CLIENT_SECRET `
+              --tenant $env:AZ_TENANT_ID | Out-Null
 
-            $logPath = Join-Path $env:WORKSPACE ("deploy-azure-webapp-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
-            Write-Host "DEPLOY LOG: $logPath"
+            Write-Host "Set subscription: $env:AZ_SUBSCRIPTION_ID"
+            az account set --subscription $env:AZ_SUBSCRIPTION_ID
 
-            & $scriptPath `
-              -SubscriptionId   $env:AZ_SUBSCRIPTION_ID `
-              -TenantId         $env:AZ_TENANT_ID `
-              -ClientId         $env:AZ_CLIENT_ID `
-              -ClientSecret     $env:AZ_CLIENT_SECRET `
-              -ResourceGroup    $env:AZ_RESOURCE_GROUP `
-              -WebAppName       $env:AZ_WEBAPP_NAME `
-              -ImageName        $env:FULL_IMAGE_SHA `
-              -RegistryServer   $env:ACR_LOGIN_SERVER `
-              -RegistryUser     $env:ACR_USER `
-              -RegistryPassword $env:ACR_PASS `
-              *>&1 | Tee-Object -FilePath $logPath
+            Write-Host "Set container config..."
+            Write-Host " - webapp=$env:AZ_WEBAPP_NAME rg=$env:AZ_RESOURCE_GROUP"
+            Write-Host " - image=$env:FULL_IMAGE_SHA"
+            Write-Host " - registry=https://$env:ACR_LOGIN_SERVER"
 
-            if ($LASTEXITCODE -ne 0) {
-              throw "Deploy script failed with exit code $LASTEXITCODE"
-            }
+            az webapp config container set `
+              --name $env:AZ_WEBAPP_NAME `
+              --resource-group $env:AZ_RESOURCE_GROUP `
+              --docker-custom-image-name $env:FULL_IMAGE_SHA `
+              --docker-registry-server-url ("https://" + $env:ACR_LOGIN_SERVER) `
+              --docker-registry-server-user $env:ACR_USER `
+              --docker-registry-server-password $env:ACR_PASS | Out-Null
 
-            Write-Host "DEPLOY OK"
-          ''')
+            # WAJIB: set port 80 agar reverse-proxy Azure benar
+            az webapp config appsettings set `
+              --name $env:AZ_WEBAPP_NAME `
+              --resource-group $env:AZ_RESOURCE_GROUP `
+              --settings WEBSITES_PORT=80 | Out-Null
+
+            Write-Host "Restart webapp..."
+            az webapp restart --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP | Out-Null
+
+            Write-Host "Show container config (verify):"
+            az webapp config container show `
+              --name $env:AZ_WEBAPP_NAME `
+              --resource-group $env:AZ_RESOURCE_GROUP `
+              --query "{image:dockerCustomImageName, server:dockerRegistryServerUrl}" -o json
+
+            Write-Host "Deploy OK"
+          '''
         }
       }
     }
 
     stage('Health Check') {
       steps {
-        // mirip macOS: tunggu sebentar lalu curl/healthcheck
         powershell '''
-          $ErrorActionPreference = "Continue"
+          $ErrorActionPreference = "Stop"
           Start-Sleep -Seconds 30
 
-          $url = ("https://{0}.azurewebsites.net/health" -f $env:AZ_WEBAPP_NAME)
-          Write-Host "Checking application health: $url"
+          $url = "https://{0}.azurewebsites.net/" -f $env:AZ_WEBAPP_NAME
+          Write-Host "Checking: $url"
 
           try {
-            # kalau kamu punya scripts/healthcheck.ps1, pakai itu (lebih rapi)
-            if (Test-Path ".\\scripts\\healthcheck.ps1") {
-              ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 240
-            } else {
-              # fallback basic
-              Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30 | Out-Null
-              Write-Host "Health check OK"
-            }
+            Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30 | Out-Null
+            Write-Host "Health OK"
           } catch {
-            Write-Host "Health check failed, check logs"
-            exit 1
+            Write-Host "Health FAILED. Tailing Azure logs..."
+            try {
+              az webapp log tail --name $env:AZ_WEBAPP_NAME --resource-group $env:AZ_RESOURCE_GROUP
+            } catch {
+              Write-Host "Cannot tail logs (az not logged in or permission issue)."
+            }
+            throw
           }
         '''
-      }
-    }
-
-    stage('Cleanup') {
-      steps {
-        // bersihin local images seperti versi macOS
-        bat """
-          docker rmi "%FULL_IMAGE_SHA%" 1>NUL 2>NUL
-          docker rmi "%FULL_IMAGE_LATEST%" 1>NUL 2>NUL
-          docker image prune -f 1>NUL 2>NUL
-          echo Cleanup done
-        """
       }
     }
   }
 
   post {
-    success {
-      script {
-        def duration = currentBuild.durationString.replace(' and counting', '')
-        echo """
-╔═══════════════════════════════════════════════════════════╗
-║           🎉 DEPLOYMENT SUCCESSFUL 🎉                      ║
-╠═══════════════════════════════════════════════════════════╣
-║ Build: #${env.BUILD_NUMBER}                               ║
-║ Commit: ${env.GIT_COMMIT_SHORT}                           ║
-║ Duration: ${duration}                                     ║
-║                                                           ║
-║ 🌐 Application URL:                                       ║
-║    https://${params.AZ_WEBAPP_NAME}.azurewebsites.net      ║
-║                                                           ║
-║ 🐳 Docker Images:                                         ║
-║    ${env.FULL_IMAGE_SHA}                                  ║
-║    ${env.FULL_IMAGE_LATEST}                               ║
-╚═══════════════════════════════════════════════════════════╝
-        """
-      }
-    }
-
-    failure {
-      script {
-        echo """
-╔═══════════════════════════════════════════════════════════╗
-║           ❌ DEPLOYMENT FAILED ❌                          ║
-╠═══════════════════════════════════════════════════════════╣
-║ Build: #${env.BUILD_NUMBER}                               ║
-║ Commit: ${env.GIT_COMMIT_SHORT}                           ║
-║                                                           ║
-║ Please check the console output for error details.        ║
-╚═══════════════════════════════════════════════════════════╝
-        """
-      }
-    }
-
     always {
-      archiveArtifacts artifacts: 'deploy-azure-webapp-*.log', allowEmptyArchive: true
-      // logout ACR (tidak bikin fail)
+      // jangan sampai cleanup bikin build gagal
       powershell '''
-        $ErrorActionPreference = "Continue"
+        $ErrorActionPreference="Continue"
         docker logout $env:ACR_LOGIN_SERVER 2>$null | Out-Null
       '''
     }
