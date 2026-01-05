@@ -20,9 +20,24 @@ if [ "${RUN_KEYGEN}" = "true" ]; then
   fi
 fi
 
-# Optional flags via App Settings
+# -------------------------------------------------------------------
+# AUTO-MIGRATE + AUTO-CREATE sessions table (untuk kasus error sessions)
+# -------------------------------------------------------------------
 if [ "${RUN_MIGRATIONS}" = "true" ]; then
   echo "[entrypoint] Running migrations..."
+
+  # Jika pakai SESSION_DRIVER=database dan migration sessions belum ada,
+  # generate migration-nya dulu (supaya migrate bisa bikin tabel sessions).
+  if [ "${SESSION_DRIVER}" = "database" ]; then
+    if ! ls -1 /var/www/database/migrations/*_create_sessions_table.php >/dev/null 2>&1; then
+      echo "[entrypoint] sessions migration not found, generating..."
+      php artisan session:table || true
+    else
+      echo "[entrypoint] sessions migration exists."
+    fi
+  fi
+
+  # Jalankan migrate
   php artisan migrate --force || true
 fi
 
