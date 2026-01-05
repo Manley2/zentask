@@ -13,6 +13,8 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\FriendController;
+use App\Http\Controllers\MessageController;
 
 use App\Http\Controllers\PaymentController;
 
@@ -106,9 +108,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     /* -------------------------
      | [A5] MESSAGES & ACTIVITY
      ------------------------- */
-    Route::get('/messages', function () {
-        return view('messages.index');
-    })->name('messages.index');
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::post('/messages/send', [MessageController::class, 'send'])->name('messages.send');
+    Route::patch('/messages/{message}', [MessageController::class, 'update'])->name('messages.update');
+    Route::delete('/messages/{message}', [MessageController::class, 'recall'])->name('messages.recall');
+
+    Route::post('/friends/invite', [FriendController::class, 'invite'])->name('friends.invite');
+    Route::post('/friends/{friendRequest}/accept', [FriendController::class, 'accept'])->name('friends.accept');
+    Route::post('/friends/{friendRequest}/decline', [FriendController::class, 'decline'])->name('friends.decline');
 
     Route::get('/activity', function () {
         return view('activity.index');

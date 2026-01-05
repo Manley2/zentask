@@ -35,7 +35,7 @@
                         fill: true,
                     },
                     {
-                        label: 'Unique Visitors',
+                        label: 'Visitors',
                         data: uniqueVisitors,
                         borderColor: 'rgba(34, 211, 238, 0.9)',
                         backgroundColor: 'rgba(34, 211, 238, 0.1)',

@@ -11,10 +11,11 @@ use Laravel\Socialite\Facades\Socialite;
 class GoogleAuthController extends Controller
 {
     public function redirect()
-    {
-        return Socialite::driver('google')
-            ->redirectUrl(config('services.google.redirect'))
-            ->redirect();
+   {
+    return Socialite::driver('google')
+        ->redirectUrl(config('services.google.redirect'))
+        ->stateless()
+        ->redirect();
     }
 
     public function callback()

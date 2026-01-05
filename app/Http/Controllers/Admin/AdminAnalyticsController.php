@@ -29,7 +29,17 @@ class AdminAnalyticsController extends Controller
             $labels[] = Carbon::parse($date)->format('d M');
             $dayVisits = $visits->get($date, collect());
             $pageViews[] = $dayVisits->count();
-            $uniqueVisitors[] = $dayVisits->unique('ip_hash')->count();
+            // Count visitors per "person": logged-in users are grouped by user_id,
+            // anonymous users are grouped by IP + User-Agent to distinguish devices on same network.
+            $uniqueVisitors[] = $dayVisits
+                ->unique(function ($visit) {
+                    if ($visit->user_id) {
+                        return 'user:' . $visit->user_id;
+                    }
+                    $ua = (string) $visit->user_agent;
+                    return 'anon:' . $visit->ip_hash . '|' . $ua;
+                })
+                ->count();
         }
 
         return view('admin.analytics.index', [

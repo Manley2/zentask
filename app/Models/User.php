@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use App\Models\FriendRequest;
+use App\Models\Message;
 
 class User extends Authenticatable
 {
@@ -112,6 +114,63 @@ class User extends Authenticatable
     public function files()
     {
         return $this->hasMany(UserFile::class);
+    }
+
+    /**
+     * Friend requests sent by this user.
+     */
+    public function friendRequestsSent()
+    {
+        return $this->hasMany(FriendRequest::class, 'requester_id');
+    }
+
+    /**
+     * Friend requests received by this user.
+     */
+    public function friendRequestsReceived()
+    {
+        return $this->hasMany(FriendRequest::class, 'recipient_id');
+    }
+
+    /**
+     * Accepted friends (mutual).
+     */
+    public function friends()
+    {
+        return $this->belongsToMany(
+            self::class,
+            'friend_requests',
+            'requester_id',
+            'recipient_id'
+        )
+        ->wherePivot('status', 'accepted')
+        ->withTimestamps();
+    }
+
+    public function messagesSent()
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    public function messagesReceived()
+    {
+        return $this->hasMany(Message::class, 'receiver_id');
+    }
+
+    /**
+     * Helper: check friendship (accepted either direction)
+     */
+    public function isFriendWith(User $other): bool
+    {
+        $friendRequest = FriendRequest::where(function ($q) use ($other) {
+            $q->where('requester_id', $this->id)
+              ->where('recipient_id', $other->id);
+        })->orWhere(function ($q) use ($other) {
+            $q->where('requester_id', $other->id)
+              ->where('recipient_id', $this->id);
+        })->where('status', 'accepted')->first();
+
+        return (bool) $friendRequest;
     }
 
     public function isAdmin(): bool

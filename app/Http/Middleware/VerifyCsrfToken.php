@@ -10,5 +10,7 @@ class VerifyCsrfToken extends Middleware
         'webhook/midtrans',
         'webhook/midtrans-test',
         'midtrans/notification',
+        // Allow logout to work even if CSRF cookie/session gets dropped (e.g. via proxy)
+        'logout',
     ];
 }

@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
 
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 
-    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+    // Allow both POST (with CSRF) and GET (for cases where the form method is not preserved by proxies/links)
+    Route::match(['post', 'get'], 'logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
 });
