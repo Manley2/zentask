@@ -107,7 +107,7 @@ pipeline {
             powershell '''
             $ErrorActionPreference = "Continue"
 
-            $url = ("http://localhost:{0}/health" -f $env:APP_PORT_LOCAL)
+            $url = ("http://localhost:{0}/" -f $env:APP_PORT_LOCAL)
             Write-Host "[healthcheck] Checking $url"
 
             try {
