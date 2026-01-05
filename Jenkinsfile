@@ -18,7 +18,7 @@ pipeline {
 
   environment {
     // Jenkins Credential ID untuk ACR (Username with password)
-    ACR_CRED_ID = 'acr-zentask-admin'
+    ACR_CRED_ID = 'acr-admin-zentask'
 
     // Jenkins Secret Text credential IDs untuk Azure Service Principal
     AZ_TENANT_ID_CRED = 'azure-tenant-id'
