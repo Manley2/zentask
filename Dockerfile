@@ -1,4 +1,4 @@
-# ---------- Stage 1: Node build (Vite) ----------
+# ---------- Stage 1: Node build (Vite) ----------baru
 FROM node:20-alpine AS nodebuild
 WORKDIR /app
 COPY package.json package-lock.json ./
