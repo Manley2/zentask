@@ -21,9 +21,9 @@ pipeline {
     ACR_CRED_ID = 'acr-admin-zentask'
 
     // Jenkins Secret Text credential IDs untuk Azure Service Principal
-    AZ_TENANT_ID_CRED = 'azure-tenant-id'
-    AZ_CLIENT_ID_CRED = 'azure-client-id'
-    AZ_CLIENT_SECRET_CRED = 'azure-client-secret'
+    AZ_TENANT_ID_CRED = 'acr-admin-zentask'
+    AZ_CLIENT_ID_CRED = 'acr-admin-zentask'
+    AZ_CLIENT_SECRET_CRED = 'acr-admin-zentask'
 
     // nama container sementara untuk test
     TEST_CONTAINER = 'zentask_test_container'
