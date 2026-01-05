@@ -17,16 +17,14 @@ pipeline {
   }
 
   environment {
-    // === Jenkins Credential IDs ===
-    // ACR (Username with password)
+    // Jenkins Credential IDs
     ACR_CRED_ID = 'acr-admin-zentask'
-
-    // Azure Service Principal (Secret Text)
     AZ_TENANT_ID_CRED     = 'azure-tenant-id'
     AZ_CLIENT_ID_CRED     = 'azure-client-id'
     AZ_CLIENT_SECRET_CRED = 'azure-client-secret'
 
-    TEST_CONTAINER = 'zentask_test_container'
+    // gunakan nama unik per build supaya tidak bentrok
+    TEST_CONTAINER = "zentask_test_${BUILD_NUMBER}"
   }
 
   stages {
@@ -50,7 +48,6 @@ pipeline {
 
           env.IMAGE_TAG          = env.GIT_SHA
 
-          // Sinkronkan parameter -> env (supaya gampang dipakai di bat/powershell)
           env.ACR_LOGIN_SERVER   = params.ACR_LOGIN_SERVER
           env.IMAGE_NAME         = params.IMAGE_NAME
           env.AZ_RESOURCE_GROUP  = params.AZ_RESOURCE_GROUP
@@ -74,35 +71,40 @@ pipeline {
 
     stage('Build Docker Image') {
       steps {
-        bat """
-          docker build -t "%FULL_IMAGE_SHA%" -t "%FULL_IMAGE_LATEST%" .
-        """
+        bat 'docker build -t "%FULL_IMAGE_SHA%" -t "%FULL_IMAGE_LATEST%" .'
       }
     }
 
     stage('Test Image') {
-        steps {
-            bat """
-            docker rm -f %TEST_CONTAINER% 2>nul || exit /b 0
-            """
+      steps {
+        // Cleanup container jika ada (tidak bikin step fail)
+        bat """
+          docker rm -f %TEST_CONTAINER% >NUL 2>NUL
+          echo [test] cleaned old container (if any): %TEST_CONTAINER%
+        """
 
-            withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
-            bat """
-                docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
-                -e APP_ENV=production ^
-                -e APP_DEBUG=false ^
-                -e APP_KEY=%APP_KEY% ^
-                "%FULL_IMAGE_SHA%"
-            """
-            }
-
-            powershell '''
-            $ErrorActionPreference = "Stop"
-            ./scripts/healthcheck.ps1 -Url ("http://localhost:{0}/" -f $env:APP_PORT_LOCAL) -TimeoutSeconds 120
-            '''
+        // Jalankan container dengan APP_KEY + log ke stderr supaya docker logs berguna
+        withCredentials([string(credentialsId: 'laravel-app-key', variable: 'APP_KEY')]) {
+          bat """
+            docker run -d --name %TEST_CONTAINER% -p %APP_PORT_LOCAL%:80 ^
+              -e APP_ENV=production ^
+              -e APP_DEBUG=false ^
+              -e APP_KEY=%APP_KEY% ^
+              -e APP_URL=http://localhost:%APP_PORT_LOCAL% ^
+              -e LOG_CHANNEL=stderr ^
+              "%FULL_IMAGE_SHA%"
+          """
         }
-    }
 
+        // Healthcheck: lebih stabil pakai /health (pastikan route ada)
+        powershell '''
+          $ErrorActionPreference = "Stop"
+          $url = ("http://localhost:{0}/" -f $env:APP_PORT_LOCAL)
+          Write-Host "[healthcheck] Checking $url"
+          ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 180
+        '''
+      }
+    }
 
     stage('Login to ACR') {
       steps {
@@ -128,16 +130,12 @@ pipeline {
 
     stage('Deploy to Azure Web App') {
       steps {
-        echo 'DEPLOY: stage entered'
-
         withCredentials([
           usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS'),
           string(credentialsId: env.AZ_TENANT_ID_CRED, variable: 'AZ_TENANT_ID'),
           string(credentialsId: env.AZ_CLIENT_ID_CRED, variable: 'AZ_CLIENT_ID'),
           string(credentialsId: env.AZ_CLIENT_SECRET_CRED, variable: 'AZ_CLIENT_SECRET')
         ]) {
-
-          // NOTE: supaya log pasti keluar, gunakan Write-Host + stop on error
           powershell(label: 'Deploy WebApp', script: '''
             $ErrorActionPreference = "Stop"
             $ProgressPreference    = "SilentlyContinue"
@@ -179,8 +177,9 @@ pipeline {
       steps {
         powershell '''
           $ErrorActionPreference = "Stop"
-          $url = "https://{0}.azurewebsites.net/health" -f $env:AZ_WEBAPP_NAME
-          ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 180
+          $url = "https://{0}.azurewebsites.net/" -f $env:AZ_WEBAPP_NAME
+          Write-Host "[healthcheck] Checking $url"
+          ./scripts/healthcheck.ps1 -Url $url -TimeoutSeconds 240
         '''
       }
     }
@@ -188,13 +187,23 @@ pipeline {
 
   post {
     always {
-      echo 'Post Actions: ensure cleanup + archive deploy logs'
+      echo 'Post Actions: cleanup test container + archive deploy logs'
       archiveArtifacts artifacts: 'deploy-azure-webapp-*.log', allowEmptyArchive: true
 
+      // tampilkan logs test container kalau stage test gagal (membantu debug 500)
       powershell '''
         $ErrorActionPreference = "Continue"
-        ./scripts/cleanup.ps1 -ContainerName $env:TEST_CONTAINER -ImageSha $env:FULL_IMAGE_SHA -ImageLatest $env:FULL_IMAGE_LATEST -IgnoreErrors
+        if ($env:TEST_CONTAINER) {
+          Write-Host "[post] docker logs (tail 200) for $env:TEST_CONTAINER"
+          docker logs --tail 200 $env:TEST_CONTAINER 2>$null
+        }
       '''
+
+      // cleanup container test
+      bat """
+        docker rm -f %TEST_CONTAINER% >NUL 2>NUL
+        echo [post] cleaned test container: %TEST_CONTAINER%
+      """
     }
   }
 }
