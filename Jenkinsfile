@@ -94,19 +94,31 @@ pipeline {
     }
 
     stage('Login to ACR') {
-      steps {
-        withCredentials([
-          usernamePassword(credentialsId: env.ACR_CRED_ID, usernameVariable: 'ACR_USER', passwordVariable: 'ACR_PASS')
-        ]) {
-          // Windows: pakai --password-stdin agar aman seperti macOS
-          powershell '''
-            $ErrorActionPreference = "Stop"
-            Write-Host "Logging in to ACR: $env:ACR_LOGIN_SERVER"
-            $env:ACR_PASS | docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USER --password-stdin
-          '''
+        steps {
+            withCredentials([
+            usernamePassword(
+                credentialsId: 'acr-admin-zentask',
+                usernameVariable: 'ACR_USER',
+                passwordVariable: 'ACR_PASS'
+            )
+            ]) {
+            powershell '''
+                $ErrorActionPreference = "Stop"
+
+                Write-Host "Logging in to ACR: $env:ACR_LOGIN_SERVER"
+                Write-Host "Using user: $env:ACR_USER"
+
+                docker logout $env:ACR_LOGIN_SERVER 2>$null | Out-Null
+
+                docker login `
+                $env:ACR_LOGIN_SERVER `
+                -u $env:ACR_USER `
+                -p $env:ACR_PASS
+            '''
+            }
         }
-      }
     }
+
 
     stage('Push to ACR') {
       steps {
